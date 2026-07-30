@@ -1,108 +1,259 @@
-<<<<<<< HEAD
-# نظام إدارة المستخدمين والصلاحيات — Warehouse User Management
+<h1 align="center">
+🏬 Warehouse Management System
+</h1>
 
-تطبيق **ASP.NET Core MVC (C#)** كامل الـ Backend + Frontend، مبني على أساس وثيقة التحليل
-"Module 1: إدارة المستخدمين والصلاحيات"، باستخدام **SQL Server** و **Entity Framework Core**.
+<p align="center">
+An enterprise warehouse management system built to organize inventory operations, purchasing, stock movements, and reporting.
+</p>
+
+<p align="center">
+
+![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-MVC-blue)
+![SQL Server](https://img.shields.io/badge/Database-SQL%20Server-red)
+![Entity Framework](https://img.shields.io/badge/ORM-Entity%20Framework%20Core-purple)
+![Bootstrap](https://img.shields.io/badge/UI-Bootstrap-blueviolet)
+
+</p>
 
 ---
 
-## 1. المتطلبات (Prerequisites)
+# 📌 Overview
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- SQL Server (LocalDB / Express / Full) — أو عدّل `ConnectionStrings:DefaultConnection` في
-  `WarehouseUserManagement/appsettings.json` ليطابق السيرفر عندك.
-- (اختياري) Visual Studio 2022 أو VS Code + C# Dev Kit.
+**Warehouse Management System** is an internal business application designed to manage warehouse operations efficiently.
+
+The system helps companies control inventory, manage purchasing processes, track stock movements, and generate reports to support better decision-making.
+
+The system provides a secure environment using authentication and role-based permissions to control access to different modules.
 
 ---
 
-## 2. طريقة التشغيل
+# 🎯 Project Objectives
 
-```bash
-cd WarehouseUserManagement
-dotnet restore
-dotnet ef database update   # ينشئ قاعدة البيانات (أو تُنشأ تلقائياً عبر EnsureCreated عند أول تشغيل)
-dotnet run
+- Manage warehouse products efficiently.
+- Track incoming and outgoing materials.
+- Maintain accurate inventory quantities.
+- Calculate inventory value.
+- Reduce manual warehouse operations.
+- Provide clear reports and dashboard analytics.
+
+---
+
+# 🚀 Main Features
+
+## 🔐 Authentication & Authorization
+
+- Secure user login.
+- Role-based access control.
+- Permission management.
+- Control access to system features.
+
+---
+
+## 📦 Product Management
+
+- Create and manage products.
+- Organize products by categories.
+- Manage product information.
+- Track:
+  - Current quantity.
+  - Average cost.
+  - Minimum stock level.
+- Prevent duplicate products.
+
+---
+
+## 🛒 Purchase Invoice Management
+
+- Create purchase invoices.
+- Add products directly from invoices.
+- Calculate:
+
+  - Subtotal.
+  - Sales tax.
+  - Grand total.
+
+- Approve invoices before updating inventory.
+- Maintain purchase history.
+
+---
+
+## 📤 Stock Issue Management
+
+- Issue materials to company departments.
+- Track receiver information.
+- Validate available stock quantity.
+- Update inventory automatically after approval.
+
+---
+
+## 🔄 Inventory Management
+
+- Track all stock movements.
+
+Supported transactions:
+
+- Purchase.
+- Issue.
+- Stock Take.
+- Adjustment.
+
+---
+
+## 📋 Stock Taking
+
+- Compare system quantity with actual quantity.
+- Calculate differences.
+- Create inventory adjustments.
+
+---
+
+## 📊 Dashboard & Reports
+
+The system provides:
+
+### Dashboard
+
+- Total products.
+- Inventory value.
+- Low stock items.
+- Purchase statistics.
+- Stock movement overview.
+
+### Reports
+
+- Current inventory report.
+- Inventory valuation report.
+- Purchase reports.
+- Issue reports.
+- Stock movement report.
+- Stock taking report.
+
+Export formats:
+
+- PDF
+- Excel
+- Word
+
+---
+
+# 🏗 System Modules
+
+| Module | Description |
+|---|---|
+| Users | Manage users and access |
+| Roles & Permissions | Control system permissions |
+| Departments | Manage material receiving departments |
+| Categories | Organize products |
+| Products | Manage warehouse items |
+| Purchase Invoices | Manage incoming stock |
+| Issues | Manage outgoing stock |
+| Stock Transactions | Track inventory history |
+| Stock Take | Inventory counting |
+| Reports | Business reports |
+| Dashboard | Data visualization |
+
+---
+
+# 🔄 System Workflow
+
+```
+Supplier
+    |
+    ▼
+Purchase Invoice
+    |
+    ▼
+Invoice Approval
+    |
+    ▼
+Increase Inventory
+    |
+    ▼
+Stock Transactions
+    |
+    ▼
+Issue Materials To Departments
+    |
+    ▼
+Inventory Reports & Dashboard
 ```
 
-> ملاحظة: المشروع يستخدم `context.Database.EnsureCreated()` عند بدء التشغيل (`DbInitializer.Seed`)
-> فينشئ الجداول ويزرع البيانات الأساسية تلقائياً من أول تشغيل بدون الحاجة لـ Migrations،
-> وهذا مناسب للتجربة السريعة. للإنتاج الفعلي يُفضّل استخدام EF Core Migrations بدلاً من ذلك:
->
-> ```bash
-> dotnet ef migrations add InitialCreate
-> dotnet ef database update
-> ```
-> (وعندها احذف استدعاء `EnsureCreated()` من `DbInitializer.cs` لتفادي التعارض مع الـ Migrations)
+---
 
-بعد التشغيل، افتح المتصفح على الرابط الذي يظهر في الطرفية (عادة `https://localhost:5001` أو ما شابه).
+# 🛠 Technologies
 
-### بيانات الدخول الافتراضية
+### Backend
 
-| Username | Password   |
-|----------|-----------|
-| `admin`  | `Admin@123` |
+- ASP.NET Core MVC
+- C#
+- Entity Framework Core
+- LINQ
 
-**غيّر كلمة المرور فوراً بعد أول دخول من صفحة "إعادة تعيين كلمة المرور".**
+### Database
+
+- SQL Server
+
+### Frontend
+
+- HTML
+- CSS
+- Bootstrap
+- JavaScript
+
+### Reporting
+
+- SSRS / Report Generation
+- PDF Export
+- Excel Export
 
 ---
 
-## 3. البنية (MVC Architecture)
+# 🗄 Database Design
 
-```
-WarehouseUserManagement/
-├── Models/                  # الكيانات (User, Role, Permission, RolePermission, AuditLog)
-│   └── ViewModels/          # نماذج العرض (Login, UserForm, RoleForm, ...)
-├── Data/
-│   ├── AppDbContext.cs      # EF Core + الفهارس (Indexes)
-│   └── DbInitializer.cs     # زرع البيانات الأساسية
-├── Services/
-│   ├── PasswordHasher.cs    # PBKDF2-SHA256 (بدون مكتبات خارجية)
-│   ├── PermissionService.cs # كاش صلاحيات كل دور (IMemoryCache)
-│   ├── AuditService.cs      # تسجيل العمليات الحساسة
-│   └── CurrentUserService.cs
-├── Authorization/
-│   └── HasPermissionAttribute.cs  # [HasPermission("Add User")] فحص O(1) عبر Claims
-├── Controllers/              # Account, Users, Roles, Permissions, AuditLogs, Home
-├── Views/                     # Razor Views (RTL, عربي)
-└── wwwroot/css/site.css       # تصميم مخصص خفيف بدون مكتبات خارجية لأفضل أداء تحميل
-```
+The system uses a relational database design with entities such as:
+
+- Users
+- Roles
+- Permissions
+- Products
+- Categories
+- Departments
+- PurchaseInvoices
+- PurchaseInvoiceDetails
+- Issues
+- IssueDetails
+- StockTransactions
+- StockTake
+- StockTakeDetails
 
 ---
 
-## 4. قرارات الأداء و تعقيد الخوارزميات (Performance & Big-O Notes)
+# 🔒 Security
 
-| الجزء | القرار | التعقيد الزمني |
-|---|---|---|
-| تسجيل الدخول / البحث باسم المستخدم | فهرس فريد (Unique Index) على `Username` | O(log n) Index Seek بدل O(n) Scan |
-| فحص الصلاحيات في كل طلب (`[HasPermission]`) | الصلاحيات تُحمَّل مرة واحدة كـ Claims داخل الكوكي عند تسجيل الدخول، والفحص عبارة عن `HashSet.Contains` | **O(1)** بدون أي استعلام لقاعدة البيانات |
-| صلاحيات الدور (Role → Permissions) | تُخزَّن مؤقتاً في الذاكرة (`IMemoryCache`) وتُفرّغ (Invalidate) فور تعديل صلاحيات الدور | O(1) بعد أول تحميل |
-| كلمة المرور (Hash/Verify) | PBKDF2 بعدد تكرار ثابت (100,000) بغض النظر عن طول كلمة المرور | O(1) بالنسبة لطول الإدخال (تكلفة ثابتة مقصودة أمنياً) |
-| قوائم المستخدمين / سجل العمليات | Paging على مستوى SQL Server (`Skip/Take` → `OFFSET/FETCH`) مع ترتيب على عمود مفهرس | O(log n + PageSize) بدل تحميل الجدول كاملاً |
-| البحث بالاسم | `StartsWith` بدل `Contains` عندما يكون ذلك ممكناً | يسمح لـ SQL Server باستخدام Index Seek بدل Full Scan |
-| القراءات (GET) | `AsNoTracking()` في كل الاستعلامات التي لا تحتاج تعديل | يقلل عبء EF Core في تتبع التغييرات |
-| ربط صلاحيات دور جديد | إدراج/حذف بالجملة (`AddRange` / `RemoveRange`) بدل استعلام لكل صلاحية | O(k) حيث k = عدد الصلاحيات المختارة، بدل O(k) استعلامات منفصلة لكل واحدة |
-| قوائم Roles مع عدد المستخدمين/الصلاحيات | استعلام واحد بـ `Select` يحسب `Count()` بدل حلقة + استعلام لكل دور | يتجنب مشكلة N+1 Query |
+The system includes:
+
+- Password protection.
+- Role-based authorization.
+- Permission validation.
+- Audit information for important operations.
 
 ---
 
-## 5. الأمان (Security)
+# 📈 Future Enhancements
 
-- كلمات المرور تُخزَّن كـ Hash فقط (PBKDF2-SHA256 + Salt عشوائي، مقارنة بزمن ثابت).
-- قفل الحساب (`IsLocked`) تلقائياً بعد عدد محاولات دخول خاطئة (افتراضياً 5، قابل للتعديل من `appsettings.json`).
-- الجلسات (Cookies) بـ `HttpOnly` + `SameSite=Lax` + انتهاء صلاحية قابل للتمديد (Sliding Expiration).
-- كل عملية إنشاء/تعديل/تفعيل/إيقاف/إعادة تعيين كلمة مرور تُسجَّل في `AuditLogs`.
-- لا يوجد حذف فعلي للمستخدمين — فقط تعطيل (Business Rule من وثيقة التحليل).
-- التحقق من صحة البيانات (Username فريد، كلمة مرور معقدة، بريد إلكتروني، إلخ) على مستوى
-  الـ ViewModel (Data Annotations) وعلى مستوى قاعدة البيانات (Unique Indexes).
+Future improvements:
+
+- Barcode scanner integration.
+- Multi warehouse support.
+- Multi branch support.
+- Mobile application.
+- ERP integration.
+- Advanced analytics.
 
 ---
 
-## 6. نقاط يمكن تطويرها لاحقاً
+# 👩‍💻 Developer
 
-- إضافة Two-Factor Authentication.
-- إضافة API منفصل (ASP.NET Core Web API) لو أردت لاحقاً واجهة SPA/Mobile.
-- ربط الوحدة بباقي وحدات نظام المستودعات (الأصناف، فواتير الشراء، الصرف، التقارير) والتي
-  ذُكرت الصلاحيات الخاصة بها في هذه الوحدة كتحضير مسبق.
-=======
-# WarehouseManagement
->>>>>>> 3122c0a620752d6768d7645bb07494e14e7988d3
+**Rania Taweel**
+
+Full Stack Developer
