@@ -1,0 +1,140 @@
+@model IssueListViewModel
+@{
+    ViewData["Title"] = "سندات الصرف";
+    bool IsAdmin = User.HasClaim("perm", "*");
+    HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
+    if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
+    {
+        RolePermissions = await PermissionService.GetPermissionNamesForRoleAsync(currentRoleId);
+    }
+    bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
+
+    string StatusLabel(IssueStatus s) => s switch
+    {
+        IssueStatus.Draft => "مسودة",
+        IssueStatus.Posted => "معتمد",
+        IssueStatus.Cancelled => "ملغى",
+        _ => s.ToString()
+    };
+
+    string StatusClass(IssueStatus s) => s switch
+    {
+        IssueStatus.Draft => "status-warning",
+        IssueStatus.Posted => "status-active",
+        IssueStatus.Cancelled => "status-inactive",
+        _ => "status-info"
+    };
+}
+
+<div class="page-title">
+    <h2>سندات الصرف</h2>
+
+    @if (Has("Create Issue"))
+    {
+        <a asp-action="Create" class="btn btn-Prim">+ سند صرف جديد</a>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>بحث (رقم السند أو المستلم)</label>
+            <input type="search" name="SearchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
+        </div>
+        <div class="form-group">
+            <label>القسم</label>
+            <select name="DepartmentFilter">
+                <option value="">الكل</option>
+                @foreach (var d in Model.DepartmentOptions)
+                {
+                    <option value="@d.DepartmentId" selected="@(Model.DepartmentFilter == d.DepartmentId)">@d.DepartmentName</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label>الحالة</label>
+            <select name="StatusFilter">
+                <option value="">الكل</option>
+                <option value="@((int)IssueStatus.Draft)" selected="@(Model.StatusFilter == IssueStatus.Draft)">مسودة</option>
+                <option value="@((int)IssueStatus.Posted)" selected="@(Model.StatusFilter == IssueStatus.Posted)">معتمد</option>
+                <option value="@((int)IssueStatus.Cancelled)" selected="@(Model.StatusFilter == IssueStatus.Cancelled)">ملغى</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("Index")" class="btn btn-secondary">تفريغ</a>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الصرف</th>
+                    <th>التاريخ</th>
+                    <th>القسم</th>
+                    <th>المستلم</th>
+                    <th>الحالة</th>
+                    <th class="actions-col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var i in Model.Issues)
+                {
+                    <tr>
+                        <td>@i.IssueNumber</td>
+                        <td class="muted">@i.IssueDate.ToString("yyyy-MM-dd")</td>
+                        <td>@i.DepartmentName</td>
+                        <td>@i.ReceiverName</td>
+                        <td><span class="status-pill @StatusClass(i.Status)">@StatusLabel(i.Status)</span></td>
+                        <td class="actions-cell">
+                            <a asp-action="Details" asp-route-id="@i.IssueId" class="btn btn-sm btn-secondary">عرض</a>
+
+                            @if (i.Status == IssueStatus.Draft && Has("Edit Issue"))
+                            {
+                                <a asp-action="Edit" asp-route-id="@i.IssueId" class="btn btn-sm btn-secondary">تعديل</a>
+                            }
+
+                            @if (i.Status == IssueStatus.Draft && Has("Post Issue"))
+                            {
+                                <form asp-action="Approve" asp-route-id="@i.IssueId" method="post" style="display:inline" data-confirm="اعتماد السند سيخصم الكميات من المخزون فوراً، متابعة؟">
+                                    <button type="submit" class="btn btn-sm btn-success">اعتماد</button>
+                                </form>
+                            }
+
+                            @if (i.Status != IssueStatus.Cancelled && Has("Cancel Issue"))
+                            {
+                                <form asp-action="Cancel" asp-route-id="@i.IssueId" method="post" style="display:inline" data-confirm="هل أنت متأكد من إلغاء السند؟">
+                                    <button type="submit" class="btn btn-sm btn-danger">إلغاء</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Issues.Any())
+                {
+                    <tr><td colspan="6" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        @for (int p = 1; p <= Model.TotalPages; p++)
+        {
+            <a class="@(p == Model.PageNumber ? "active" : "")"
+               href="@Url.Action("Index", new { SearchTerm = Model.SearchTerm, DepartmentFilter = Model.DepartmentFilter, StatusFilter = Model.StatusFilter, PageNumber = p, PageSize = Model.PageSize })">@p</a>
+        }
+    </div>
+    <p class="muted">إجمالي النتائج: @Model.TotalCount</p>
+</div>

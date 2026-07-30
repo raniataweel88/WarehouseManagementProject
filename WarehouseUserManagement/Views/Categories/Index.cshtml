@@ -1,0 +1,494 @@
+@model CategoryListViewModel
+
+@{
+    ViewData["Title"] = "التصنيفات";
+
+    bool IsAdmin = User.HasClaim("perm", "*");
+    HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
+    if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
+    {
+        RolePermissions = await PermissionService.GetPermissionNamesForRoleAsync(currentRoleId);
+    }
+
+    bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
+}
+
+
+<div class="page-title">
+
+    <h2>إدارة التصنيفات</h2>
+
+
+    @if (Has("Add Category"))
+    {
+        <button class="btn btn-Prim"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#createCategoryModal">
+
+            + تصنيف جديد
+
+        </button>
+    }
+
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+
+    
+
+</div>
+
+
+
+<div class="card">
+
+    <form method="get" class="toolbar">
+
+        <div class="form-group">
+
+            <label>
+                بحث (اسم التصنيف)
+            </label>
+
+
+            <input type="search"
+                   name="SearchTerm"
+                   value="@Model.SearchTerm"
+                   placeholder="اكتب للبحث..." />
+
+        </div>
+
+
+
+        <button type="submit"
+                class="btn btn-Prim">
+
+            بحث
+
+        </button>
+
+
+
+        <a href="@Url.Action("Index")"
+           class="btn btn-secondary">
+
+            تفريغ
+
+        </a>
+
+
+    </form>
+
+</div>
+
+
+
+
+
+<div class="card">
+
+    <div class="table-responsive">
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        اسم التصنيف
+                    </th>
+
+
+                    <th class="actions-col"></th>
+
+                </tr>
+
+            </thead>
+
+
+
+            <tbody>
+
+
+                @foreach (var c in Model.Categories)
+                {
+
+                    <tr>
+
+
+                        <td>
+                            @c.CategoryName
+                        </td>
+
+
+
+                        <td class="actions-cell">
+
+
+                            @if (Has("Edit Category"))
+                            {
+
+                                <button class="btn btn-sm  btn-secondary editCategoryBtn"
+                                        data-id="@c.CategoryId">
+
+                                    تعديل
+
+                                </button>
+
+                            }
+
+
+
+
+
+                            @if (Has("Delete Category"))
+                            {
+
+                                <form asp-action="Delete"
+                                      method="post"
+                                      class="deleteForm d-inline">
+
+
+                                    @Html.AntiForgeryToken()
+
+
+                                    <input type="hidden"
+                                           name="id"
+                                           value="@c.CategoryId" />
+
+
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger deleteBtn">
+
+                                        حذف
+
+                                    </button>
+
+
+                                </form>
+
+                            }
+
+
+                        </td>
+
+
+                    </tr>
+
+                }
+
+
+
+                @if (!Model.Categories.Any())
+                {
+
+                    <tr>
+
+                        <td colspan="2"
+                            class="muted"
+                            style="text-align:center;padding:24px">
+
+                            لا يوجد نتائج
+
+                        </td>
+
+                    </tr>
+
+                }
+
+
+
+            </tbody>
+
+
+        </table>
+
+
+    </div>
+
+
+
+
+
+    <div class="pagination">
+
+
+        @for (int p = 1; p <= Model.TotalPages; p++)
+        {
+
+            <a class="@(p == Model.PageNumber ? "active" : "")"
+               href="@Url.Action("Index",
+                              new
+                              {
+                                  SearchTerm = Model.SearchTerm,
+                                  StatusFilter = Model.StatusFilter,
+                                  PageNumber = p,
+                                  PageSize = Model.PageSize
+                              })">
+
+                @p
+
+            </a>
+
+        }
+
+
+    </div>
+
+
+
+    <p class="muted">
+
+        إجمالي النتائج:
+        @Model.TotalCount
+
+    </p>
+
+
+
+</div>
+
+
+
+
+
+<!-- Create Modal -->
+
+<div class="modal fade"
+     id="createCategoryModal"
+     tabindex="-1">
+
+
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+
+
+        <div class="modal-content">
+
+
+            <form asp-action="Create"
+                  method="post">
+
+
+                @Html.AntiForgeryToken()
+
+
+                <div class="modal-header">
+
+
+                    <h5 class="modal-title">
+
+                        إضافة تصنيف جديد
+
+                    </h5>
+
+
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal">
+                    </button>
+
+
+                </div>
+
+
+
+
+
+                <div class="modal-body">
+
+
+                    <div class="form-group">
+
+                        <label>
+                            اسم التصنيف
+                        </label>
+
+
+                        <input name="CategoryName"
+                               class="form-control" />
+
+                    </div>
+
+
+                </div>
+
+
+
+
+
+                <div class="modal-footer">
+
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal">
+
+                        إلغاء
+
+                    </button>
+
+
+
+
+                    <button type="submit"
+                            class="btn  btn-Prim">
+
+                        حفظ
+
+                    </button>
+
+
+                </div>
+
+
+
+            </form>
+
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+
+
+
+<!-- Edit Modal -->
+
+<div class="modal fade"
+     id="editCategoryModal"
+     tabindex="-1">
+
+
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+
+
+        <div class="modal-content"
+             id="editCategoryContent">
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+
+
+
+
+
+
+
+<script>
+
+
+    // Delete confirmation
+
+    document.querySelectorAll(".deleteBtn")
+    .forEach(btn => {
+
+
+    btn.addEventListener("click", function(){
+
+
+    let form = this.closest(".deleteForm");
+
+
+
+    Swal.fire({
+
+    title: "هل أنت متأكد؟",
+
+    text: "سيتم حذف التصنيف (Soft Delete) ويمكن استرجاعه لاحقاً.",
+
+    icon: "warning",
+
+    showCancelButton: true,
+
+ 
+
+    confirmButtonText: "نعم، احذف",
+
+    cancelButtonText: "إلغاء"
+
+
+    }).then((result)=>{
+
+
+    if(result.isConfirmed)
+    {
+
+    form.submit();
+
+    }
+
+
+    });
+
+
+
+    });
+
+
+
+    });
+
+
+
+
+    // Edit Modal
+
+    document.querySelectorAll(".editCategoryBtn")
+    .forEach(btn => {
+
+
+    btn.addEventListener("click", function(){
+
+
+    let id = this.dataset.id;
+
+
+
+    fetch('/Categories/Edit/' + id)
+
+    .then(r => r.text())
+
+    .then(html => {
+
+
+    document.getElementById("editCategoryContent")
+    .innerHTML = html;
+
+
+
+    new bootstrap.Modal(
+    document.getElementById("editCategoryModal")
+    ).show();
+
+
+    });
+
+
+    });
+
+
+    });
+
+
+
+</script>

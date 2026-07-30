@@ -1,0 +1,94 @@
+@model PurchaseReportViewModel
+@{
+    ViewData["Title"] = "تقرير المشتريات";
+    string StatusLabel(PurchaseInvoiceStatus s) => s switch
+    {
+        PurchaseInvoiceStatus.Draft => "مسودة",
+        PurchaseInvoiceStatus.Posted => "معتمدة",
+        PurchaseInvoiceStatus.Cancelled => "ملغاة",
+        _ => s.ToString()
+    };
+}
+
+<div class="page-title">
+    <h2>@ViewData["Title"]</h2>
+    <a asp-action="Index" class="btn btn-secondary">⟵ قائمة التقارير</a>
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>من تاريخ</label>
+            <input type="date" name="FromDate" value="@Model.Filter.FromDate?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-group">
+            <label>إلى تاريخ</label>
+            <input type="date" name="ToDate" value="@Model.Filter.ToDate?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-group">
+            <label>المورد</label>
+            <input type="text" name="SupplierName" value="@Model.Filter.SupplierName" placeholder="اسم المورد" />
+        </div>
+        <div class="form-group">
+            <label>الحالة</label>
+            <select name="Status">
+                <option value="">الكل</option>
+                <option value="@((int)PurchaseInvoiceStatus.Draft)" selected="@(Model.Filter.Status == PurchaseInvoiceStatus.Draft)">مسودة</option>
+                <option value="@((int)PurchaseInvoiceStatus.Posted)" selected="@(Model.Filter.Status == PurchaseInvoiceStatus.Posted)">معتمدة</option>
+                <option value="@((int)PurchaseInvoiceStatus.Cancelled)" selected="@(Model.Filter.Status == PurchaseInvoiceStatus.Cancelled)">ملغاة</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("Purchases")" class="btn btn-secondary">تفريغ</a>
+        <a href="@Url.Action("PurchasesCsv", new { Model.Filter.FromDate, Model.Filter.ToDate, Model.Filter.SupplierName, Model.Filter.Status })" class="btn btn-secondary">⬇ تصدير Excel/CSV</a>
+    </form>
+</div>
+
+<div class="stats-grid" style="margin-top:16px;">
+    <div class="stat-card">
+        <div class="num">@Model.TotalInvoices</div>
+        <div class="label">عدد الفواتير</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">@Model.TotalGrandTotal.ToString("N2")</div>
+        <div class="label">إجمالي القيمة</div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الفاتورة</th>
+                    <th>التاريخ</th>
+                    <th>المورد</th>
+                    <th>المجموع الفرعي</th>
+                    <th>الضريبة</th>
+                    <th>الإجمالي</th>
+                    <th>الحالة</th>
+                    <th>المستخدم</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    <tr>
+                        <td>@r.InvoiceNumber</td>
+                        <td class="muted">@r.InvoiceDate.ToString("yyyy-MM-dd")</td>
+                        <td>@r.SupplierName</td>
+                        <td>@r.SubTotal.ToString("N2")</td>
+                        <td>@r.SalesTaxAmount.ToString("N2")</td>
+                        <td>@r.GrandTotal.ToString("N2")</td>
+                        <td>@StatusLabel(r.Status)</td>
+                        <td>@(r.CreatedBy ?? "-")</td>
+                    </tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="8" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

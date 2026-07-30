@@ -1,0 +1,34 @@
+@{
+    ViewData["Title"] = "الرئيسية";
+}
+<div class="page-title">
+    <h2>لوحة التحكم</h2>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="num">@ViewBag.TotalUsers</div>
+        <div class="label">إجمالي المستخدمين</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">@ViewBag.ActiveUsers</div>
+        <div class="label">مستخدمون نشطون</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">@ViewBag.LockedUsers</div>
+        <div class="label">حسابات موقوفة</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">@ViewBag.TotalRoles</div>
+        <div class="label">عدد الأدوار</div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:20px">
+    <h3>روابط سريعة</h3>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a class="btn btn-Prim" asp-controller="Users" asp-action="Index">إدارة المستخدمين</a>
+        <a class="btn btn-secondary" asp-controller="Roles" asp-action="Index">إدارة الأدوار</a>
+        <a class="btn btn-secondary" asp-controller="Permissions" asp-action="Index">إدارة الصلاحيات</a>
+     </div>
+</div>

@@ -1,0 +1,60 @@
+@model IEnumerable<RoleListItem>
+@{
+    ViewData["Title"] = "الأدوار";
+}
+
+<div class="page-title">
+    <h2>إدارة الأدوار</h2>
+    <a class="btn btn-Prim" asp-action="Create">+ دور جديد</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>اسم الدور</th>
+                    <th>الوصف</th>
+                    <th>عدد المستخدمين</th>
+                    <th>عدد الصلاحيات</th>
+                    <th>الحالة</th>
+                    <th class="actions-col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model)
+                {
+                    <tr>
+                        <td>@r.RoleName</td>
+                        <td class="muted wrap-text">@(r.Description ?? "-")</td>
+                        <td>@r.UsersCount</td>
+                        <td>@r.PermissionsCount</td>
+                        <td>
+                            @if (r.IsActive)
+                            {
+                                <span class="status-pill status-active">مفعل</span>
+                            }
+                            else
+                            {
+                                <span class="status-pill status-inactive">موقوف</span>
+                            }
+                        </td>
+                        <td class="actions-cell">
+                            <a class="btn btn-sm btn-secondary" asp-action="Edit" asp-route-id="@r.RoleId">تعديل</a>
+                            <form asp-action="ToggleActive" asp-route-id="@r.RoleId" method="post" style="display:inline" data-confirm="هل أنت متأكد؟">
+                                @if (r.IsActive)
+                                {
+                                    <button type="submit" class="btn btn-sm btn-danger">إيقاف</button>
+                                }
+                                else
+                                {
+                                    <button type="submit" class="btn btn-sm btn-success">تفعيل</button>
+                                }
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

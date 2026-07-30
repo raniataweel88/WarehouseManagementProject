@@ -1,0 +1,130 @@
+@model PurchaseInvoiceListViewModel
+@{
+    ViewData["Title"] = "فواتير الشراء";
+    bool IsAdmin = User.HasClaim("perm", "*");
+    HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
+    if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
+    {
+        RolePermissions = await PermissionService.GetPermissionNamesForRoleAsync(currentRoleId);
+    }
+    bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
+
+    string StatusLabel(PurchaseInvoiceStatus s) => s switch
+    {
+        PurchaseInvoiceStatus.Draft => "مسودة",
+        PurchaseInvoiceStatus.Posted => "معتمدة",
+        PurchaseInvoiceStatus.Cancelled => "ملغاة",
+        _ => s.ToString()
+    };
+
+    string StatusClass(PurchaseInvoiceStatus s) => s switch
+    {
+        PurchaseInvoiceStatus.Draft => "status-warning",
+        PurchaseInvoiceStatus.Posted => "status-active",
+        PurchaseInvoiceStatus.Cancelled => "status-inactive",
+        _ => "status-info"
+    };
+}
+
+<div class="page-title">
+    <h2>فواتير الشراء</h2>
+
+    @if (Has("Create Purchase Invoice"))
+    {
+        <a asp-action="Create" class="btn btn-Prim">+ فاتورة شراء جديدة</a>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>بحث (رقم الفاتورة أو المورد)</label>
+            <input type="search" name="SearchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
+        </div>
+        <div class="form-group">
+            <label>الحالة</label>
+            <select name="StatusFilter">
+                <option value="">الكل</option>
+                <option value="@((int)PurchaseInvoiceStatus.Draft)" selected="@(Model.StatusFilter == PurchaseInvoiceStatus.Draft)">مسودة</option>
+                <option value="@((int)PurchaseInvoiceStatus.Posted)" selected="@(Model.StatusFilter == PurchaseInvoiceStatus.Posted)">معتمدة</option>
+                <option value="@((int)PurchaseInvoiceStatus.Cancelled)" selected="@(Model.StatusFilter == PurchaseInvoiceStatus.Cancelled)">ملغاة</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("Index")" class="btn btn-secondary">تفريغ</a>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الفاتورة</th>
+                    <th>التاريخ</th>
+                    <th>المورد</th>
+                    <th>الإجمالي الكلي</th>
+                    <th>الحالة</th>
+                    <th class="actions-col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var i in Model.Invoices)
+                {
+                    <tr>
+                        <td>@i.InvoiceNumber</td>
+                        <td class="muted">@i.InvoiceDate.ToString("yyyy-MM-dd")</td>
+                        <td>@i.SupplierName</td>
+                        <td>@i.GrandTotal.ToString("N2")</td>
+                        <td><span class="status-pill @StatusClass(i.Status)">@StatusLabel(i.Status)</span></td>
+                        <td class="actions-cell">
+                            <a asp-action="Details" asp-route-id="@i.PurchaseInvoiceId" class="btn btn-sm btn-secondary">عرض</a>
+
+                            @if (i.Status == PurchaseInvoiceStatus.Draft && Has("Edit Purchase Invoice"))
+                            {
+                                <a asp-action="Edit" asp-route-id="@i.PurchaseInvoiceId" class="btn btn-sm btn-secondary">تعديل</a>
+                            }
+
+                            @if (i.Status == PurchaseInvoiceStatus.Draft && Has("Post Purchase Invoice"))
+                            {
+                                <form asp-action="Approve" asp-route-id="@i.PurchaseInvoiceId" method="post" style="display:inline" data-confirm="اعتماد الفاتورة سيحدّث المخزون فوراً، متابعة؟">
+                                    <button type="submit" class="btn btn-sm btn-success">اعتماد</button>
+                                </form>
+                            }
+
+                            @if (i.Status != PurchaseInvoiceStatus.Cancelled && Has("Cancel Purchase Invoice"))
+                            {
+                                <form asp-action="Cancel" asp-route-id="@i.PurchaseInvoiceId" method="post" style="display:inline" data-confirm="هل أنت متأكد من إلغاء الفاتورة؟">
+                                    <button type="submit" class="btn btn-sm btn-danger">إلغاء</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Invoices.Any())
+                {
+                    <tr><td colspan="6" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        @for (int p = 1; p <= Model.TotalPages; p++)
+        {
+            <a class="@(p == Model.PageNumber ? "active" : "")"
+               href="@Url.Action("Index", new { SearchTerm = Model.SearchTerm, StatusFilter = Model.StatusFilter, PageNumber = p, PageSize = Model.PageSize })">@p</a>
+        }
+    </div>
+    <p class="muted">إجمالي النتائج: @Model.TotalCount</p>
+</div>

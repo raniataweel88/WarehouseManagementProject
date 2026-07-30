@@ -1,0 +1,215 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "لوحة التحكم";
+
+    string TrendClass(double? trend) => trend switch
+    {
+        null => "trend-flat",
+        > 0 => "trend-up",
+        < 0 => "trend-down",
+        _ => "trend-flat"
+    };
+
+    string TrendText(double? trend) => trend switch
+    {
+        null => "لا مقارنة متاحة",
+        > 0 => $"▲ {trend:0.#}% عن الشهر الماضي",
+        < 0 => $"▼ {Math.Abs(trend.Value):0.#}% عن الشهر الماضي",
+        _ => "بدون تغيير عن الشهر الماضي"
+    };
+}
+
+<div class="page-title">
+    <h2>لوحة التحكم</h2>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card-v2">
+        <div class="stat-icon icon-navy">📦</div>
+        <div class="num">@Model.TotalProducts</div>
+        <div class="label">إجمالي الأصناف</div>
+    </div>
+    <div class="stat-card-v2">
+        <div class="stat-icon icon-orange">💰</div>
+        <div class="num">@Model.InventoryValue.ToString("N0")</div>
+        <div class="label">قيمة المخزون</div>
+    </div>
+    <div class="stat-card-v2">
+        <div class="stat-icon icon-rose">⚠</div>
+        <div class="num">@Model.LowStockCount</div>
+        <div class="label">الأصناف الناقصة</div>
+    </div>
+    <div class="stat-card-v2">
+        <div class="stat-icon icon-teal">🧾</div>
+        <div class="num">@Model.PurchaseInvoicesThisMonth</div>
+        <div class="label">فواتير شراء (هذا الشهر)</div>
+        <span class="trend-badge @TrendClass(Model.PurchaseInvoicesTrend)">@TrendText(Model.PurchaseInvoicesTrend)</span>
+    </div>
+    <div class="stat-card-v2">
+        <div class="stat-icon icon-amber">📤</div>
+        <div class="num">@Model.IssuesThisMonth</div>
+        <div class="label">سندات صرف (هذا الشهر)</div>
+        <span class="trend-badge @TrendClass(Model.IssuesTrend)">@TrendText(Model.IssuesTrend)</span>
+    </div>
+</div>
+
+<div class="dashboard-charts-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:20px; margin-top:20px;">
+    <div class="card">
+        <div class="chart-card-header"><span class="icon">📈</span><h3>المشتريات حسب الشهر</h3></div>
+        <canvas id="purchaseByMonthChart" height="220"></canvas>
+    </div>
+    <div class="card">
+        <div class="chart-card-header"><span class="icon">🏆</span><h3>أكثر الأصناف شراءً</h3></div>
+        <canvas id="topPurchasedChart" height="220"></canvas>
+    </div>
+    <div class="card">
+        <div class="chart-card-header"><span class="icon">🏢</span><h3>أكثر الأقسام استهلاكاً</h3></div>
+        <canvas id="deptConsumptionChart" height="220"></canvas>
+    </div>
+    <div class="card">
+        <div class="chart-card-header"><span class="icon">🔄</span><h3>حركة المخزون (وارد / صادر)</h3></div>
+        <canvas id="stockMovementChart" height="220"></canvas>
+    </div>
+</div>
+
+<div class="dashboard-bottom-grid"  >
+    <div class="card">
+        <div class="chart-card-header"><span class="icon">🔔</span><h3>تنبيهات</h3></div>
+
+        @if (Model.PendingPurchaseApprovals > 0)
+        {
+            <div class="alert alert-warning">
+                يوجد <strong>@Model.PendingPurchaseApprovals</strong> فاتورة شراء بانتظار الاعتماد.
+                <a asp-controller="PurchaseInvoices" asp-action="Index">عرض الفواتير</a>
+            </div>
+        }
+
+        @if (Model.LowStockAlerts.Any())
+        {
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>الكمية الحالية</th>
+                            <th>الحد الأدنى</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.LowStockAlerts)
+                        {
+                            <tr>
+                                <td>⚠ @item.ProductName</td>
+                                <td>@item.CurrentQuantity</td>
+                                <td>@item.MinimumQuantity</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <a asp-controller="Reports" asp-action="Inventory" asp-route-OnlyLowStock="true" class="btn btn-secondary" style="margin-top:10px;">عرض تقرير الأصناف الناقصة كاملاً</a>
+        }
+        else
+        {
+            <p class="muted">لا يوجد أصناف تحت الحد الأدنى حالياً 🎉</p>
+        }
+    </div>
+
+  
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script>
+        Chart.defaults.font = { family: "Cairo", size: 12 };
+        Chart.defaults.color = "#64748B";
+        Chart.defaults.borderColor = "#E2E8F0";
+
+        function gradient(ctx, area, colorStart, colorEnd) {
+            const g = ctx.createLinearGradient(0, area.top, 0, area.bottom);
+            g.addColorStop(0, colorStart);
+            g.addColorStop(1, colorEnd);
+            return g;
+        }
+
+        // ===== المشتريات حسب الشهر (تدرّج برتقالي - لون الهوية) =====
+        new Chart(document.getElementById('purchaseByMonthChart'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(Json.Serialize(Model.PurchaseMonthLabels)),
+                datasets: [{
+                    label: 'قيمة المشتريات',
+                    data: @Html.Raw(Json.Serialize(Model.PurchaseMonthValues)),
+                    backgroundColor: (c) => c.chart.chartArea ? gradient(c.chart.ctx, c.chart.chartArea, '#FB923C', '#EA580C') : '#F97316',
+                    borderRadius: 6,
+                    maxBarThickness: 42
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: '#F1F5F9' } }, x: { grid: { display: false } } }
+            }
+        });
+
+        // ===== أكثر الأصناف شراءً (تدرّج كحلي غامق) =====
+        new Chart(document.getElementById('topPurchasedChart'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(Json.Serialize(Model.TopPurchasedProductNames)),
+                datasets: [{
+                    label: 'الكمية المشتراة',
+                    data: @Html.Raw(Json.Serialize(Model.TopPurchasedProductQuantities)),
+                    backgroundColor: (c) => c.chart.chartArea ? gradient(c.chart.ctx, c.chart.chartArea, '#475569', '#1E293B') : '#334155',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, grid: { color: '#F1F5F9' } }, y: { grid: { display: false } } }
+            }
+        });
+
+        // ===== أكثر الأقسام استهلاكاً (لوحة ألوان هادئة منسجمة) =====
+        new Chart(document.getElementById('deptConsumptionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: @Html.Raw(Json.Serialize(Model.DepartmentConsumptionLabels)),
+                datasets: [{
+                    data: @Html.Raw(Json.Serialize(Model.DepartmentConsumptionValues)),
+                    backgroundColor: ['#F97316', '#0D9488', '#334155', '#D97706', '#38BDF8', '#E11D48'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: { responsive: true, cutout: '62%', plugins: { legend: { position: 'bottom' } } }
+        });
+
+        // ===== حركة المخزون (تيل للوارد / وردي للصادر) =====
+        const movementCtx = document.getElementById('stockMovementChart');
+        new Chart(movementCtx, {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(Json.Serialize(Model.StockMovementLabels)),
+                datasets: [
+                    {
+                        label: 'وارد', data: @Html.Raw(Json.Serialize(Model.StockMovementIn)),
+                        borderColor: '#0D9488', backgroundColor: 'rgba(13,148,136,.12)',
+                        fill: true, tension: .35, pointRadius: 3, borderWidth: 2
+                    },
+                    {
+                        label: 'صادر', data: @Html.Raw(Json.Serialize(Model.StockMovementOut)),
+                        borderColor: '#E11D48', backgroundColor: 'rgba(225,29,72,.10)',
+                        fill: true, tension: .35, pointRadius: 3, borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true, grid: { color: '#F1F5F9' } }, x: { grid: { display: false } } }
+            }
+        });
+    </script>
+}

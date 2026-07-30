@@ -1,0 +1,88 @@
+@model IssueByDepartmentViewModel
+@{
+    ViewData["Title"] = "تقرير الصادر حسب القسم";
+}
+
+<div class="page-title">
+    <h2>@ViewData["Title"]</h2>
+    <a asp-action="Index" class="btn btn-secondary">⟵ قائمة التقارير</a>
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>القسم</label>
+            <select name="DepartmentId">
+                <option value="">الكل</option>
+                @foreach (var d in Model.Departments)
+                {
+                    <option value="@d.DepartmentId" selected="@(Model.Filter.DepartmentId == d.DepartmentId)">@d.DepartmentName</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label>الصنف</label>
+            <select name="ProductId">
+                <option value="">الكل</option>
+                @foreach (var p in Model.Products)
+                {
+                    <option value="@p.ProductId" selected="@(Model.Filter.ProductId == p.ProductId)">@p.ProductName</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label>من تاريخ</label>
+            <input type="date" name="FromDate" value="@Model.Filter.FromDate?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-group">
+            <label>إلى تاريخ</label>
+            <input type="date" name="ToDate" value="@Model.Filter.ToDate?.ToString("yyyy-MM-dd")" />
+        </div>
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("IssueByDepartment")" class="btn btn-secondary">تفريغ</a>
+        <a href="@Url.Action("IssueByDepartmentCsv", new { Model.Filter.DepartmentId, Model.Filter.ProductId, Model.Filter.FromDate, Model.Filter.ToDate })" class="btn btn-secondary">⬇ تصدير Excel/CSV</a>
+    </form>
+</div>
+
+<div class="stats-grid" style="margin-top:16px;">
+    <div class="stat-card">
+        <div class="num">@Model.Rows.Count</div>
+        <div class="label">عدد الحركات</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">@Model.TotalQuantity</div>
+        <div class="label">إجمالي الكمية المصروفة</div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>القسم</th>
+                    <th>الصنف</th>
+                    <th>الكمية</th>
+                    <th>التاريخ</th>
+                    <th>المستلم</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    <tr>
+                        <td>@r.DepartmentName</td>
+                        <td>@r.ProductName</td>
+                        <td>@r.Quantity</td>
+                        <td class="muted">@r.IssueDate.ToString("yyyy-MM-dd")</td>
+                        <td>@r.ReceiverName</td>
+                    </tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="5" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,56 @@
+@model RoleFormViewModel
+@{
+    ViewData["Title"] = "دور جديد";
+}
+
+<div class="page-title"><h2>إضافة دور جديد</h2></div>
+
+<div class="card">
+    <form asp-action="Create" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; max-width:720px;">
+            <div class="form-group">
+                <label asp-for="RoleName"></label>
+                <input asp-for="RoleName" type="text" />
+                <span asp-validation-for="RoleName" class="text-danger"></span>
+            </div>
+            <div class="form-group checkbox-row" style="align-self:end;">
+                <input asp-for="IsActive" type="checkbox" style="width:auto" />
+                <label asp-for="IsActive" style="margin:0">مفعل</label>
+            </div>
+        </div>
+
+        <div class="form-group" style="max-width:720px;">
+            <label asp-for="Description"></label>
+            <textarea asp-for="Description" rows="2"></textarea>
+        </div>
+
+        <h3 style="margin-top:24px;">الصلاحيات</h3>
+        <p class="muted">اختر الصلاحيات التي يمتلكها هذا الدور</p>
+
+        <div class="perm-groups">
+            @for (int g = 0; g < Model.PermissionGroups.Count; g++)
+            {
+                var group = Model.PermissionGroups[g];
+                <div class="perm-group">
+                    <h4>@group.ModuleName</h4>
+                    @for (int i = 0; i < group.Permissions.Count; i++)
+                    {
+                        var perm = group.Permissions[i];
+                        <div class="perm-item">
+                            <input type="checkbox" name="SelectedPermissionIds" value="@perm.PermissionId"
+                                   id="perm_@perm.PermissionId" checked="@perm.IsSelected" style="width:auto" />
+                            <label for="perm_@perm.PermissionId" style="margin:0; font-weight:400;">@perm.PermissionName</label>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-Prim">حفظ</button>
+            <a class="btn btn-secondary" asp-action="Index">إلغاء</a>
+        </div>
+    </form>
+</div>

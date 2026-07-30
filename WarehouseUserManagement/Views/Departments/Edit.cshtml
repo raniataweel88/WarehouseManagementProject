@@ -1,0 +1,51 @@
+@model DepartmentFormViewModel
+
+@{
+    Layout = null;
+}
+
+<form asp-action="Edit" asp-route-id="@Model.DepartmentId" method="post" data-ajax-modal>
+
+    <input type="hidden" asp-for="DepartmentId" />
+    <input type="hidden" asp-for="RowVersion" />
+
+    <div class="modal-header">
+        <h5 class="modal-title">
+            تعديل بيانات القسم
+        </h5>
+
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal">
+        </button>
+    </div>
+
+    <div class="modal-body">
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label asp-for="DepartmentName"></label>
+                <input asp-for="DepartmentName" class="form-control" />
+                <span asp-validation-for="DepartmentName" class="text-danger"></span>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="modal-footer">
+
+        <button type="button"
+                class="btn btn-cancel"
+                data-bs-dismiss="modal">
+            إلغاء
+        </button>
+
+        <button type="submit" class="btn btn-save">
+            حفظ التعديلات
+        </button>
+
+    </div>
+
+</form>

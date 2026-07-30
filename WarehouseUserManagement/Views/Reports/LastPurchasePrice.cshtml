@@ -1,0 +1,50 @@
+@model LastPurchasePriceViewModel
+@{
+    ViewData["Title"] = "آخر أسعار الشراء";
+}
+
+<div class="page-title">
+    <h2>@ViewData["Title"]</h2>
+    <a asp-action="Index" class="btn btn-secondary">⟵ قائمة التقارير</a>
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>بحث (اسم الصنف)</label>
+            <input type="search" name="searchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
+        </div>
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("LastPurchasePrice")" class="btn btn-secondary">تفريغ</a>
+    </form>
+</div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>الصنف</th>
+                    <th>المورد</th>
+                    <th>آخر سعر شراء</th>
+                    <th>تاريخ الشراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    <tr>
+                        <td>@r.ProductName</td>
+                        <td>@r.SupplierName</td>
+                        <td>@r.LastUnitPrice.ToString("N4")</td>
+                        <td class="muted">@r.LastPurchaseDate.ToString("yyyy-MM-dd")</td>
+                    </tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج (تحتسب من الفواتير المعتمدة فقط)</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

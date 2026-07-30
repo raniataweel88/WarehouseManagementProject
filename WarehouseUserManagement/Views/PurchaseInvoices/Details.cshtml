@@ -1,0 +1,106 @@
+@model PurchaseInvoiceDetailsViewModel
+@{
+    ViewData["Title"] = "تفاصيل فاتورة الشراء";
+
+    string StatusLabel(PurchaseInvoiceStatus s) => s switch
+    {
+        PurchaseInvoiceStatus.Draft => "مسودة",
+        PurchaseInvoiceStatus.Posted => "معتمدة",
+        PurchaseInvoiceStatus.Cancelled => "ملغاة",
+        _ => s.ToString()
+    };
+
+    string StatusClass(PurchaseInvoiceStatus s) => s switch
+    {
+        PurchaseInvoiceStatus.Draft => "status-warning",
+        PurchaseInvoiceStatus.Posted => "status-active",
+        PurchaseInvoiceStatus.Cancelled => "status-inactive",
+        _ => "status-info"
+    };
+}
+
+<div class="page-title">
+    <h2>فاتورة شراء رقم @Model.InvoiceNumber</h2>
+    <a asp-action="Index" class="btn btn-secondary">رجوع للقائمة</a>
+</div>
+
+<div class="card">
+    <div class="form-grid">
+        <div class="form-group">
+            <label>رقم الفاتورة</label>
+            <p>@Model.InvoiceNumber</p>
+        </div>
+        <div class="form-group">
+            <label>التاريخ</label>
+            <p>@Model.InvoiceDate.ToString("yyyy-MM-dd")</p>
+        </div>
+        <div class="form-group">
+            <label>المورد</label>
+            <p>@Model.SupplierName</p>
+        </div>
+        <div class="form-group">
+            <label>هاتف المورد</label>
+            <p>@(Model.SupplierPhone ?? "-")</p>
+        </div>
+        <div class="form-group full-width">
+            <label>عنوان المورد</label>
+            <p>@(Model.SupplierAddress ?? "-")</p>
+        </div>
+        <div class="form-group full-width">
+            <label>ملاحظات</label>
+            <p>@(Model.Notes ?? "-")</p>
+        </div>
+        <div class="form-group">
+            <label>الحالة</label>
+            <p><span class="status-pill @StatusClass(Model.Status)">@StatusLabel(Model.Status)</span></p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>الصنف</th>
+                    <th>الوحدة</th>
+                    <th>الكمية</th>
+                    <th>سعر الوحدة</th>
+                    <th>إجمالي السطر</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    <tr>
+                        <td>@l.ProductName</td>
+                        <td class="muted">@l.Unit</td>
+                        <td>@l.Quantity</td>
+                        <td>@l.UnitPrice.ToString("N2")</td>
+                        <td>@l.LineTotal.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-grid" style="margin-top:20px; max-width:90%; margin-inline-start:auto;">
+       
+        <div class="form-group">
+            <label>الإجمالي الكلي</label>
+            <p><strong>@Model.GrandTotal.ToString("N2")</strong></p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <p class="muted">أنشئت بواسطة @(Model.CreatedBy ?? "-") بتاريخ @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
+    @if (Model.PostedDate != null)
+    {
+        <p class="muted">اعتُمدت بواسطة @(Model.PostedBy ?? "-") بتاريخ @Model.PostedDate.Value.ToString("yyyy-MM-dd HH:mm")</p>
+    }
+    @if (Model.CancelledDate != null)
+    {
+        <p class="muted">أُلغيت بواسطة @(Model.CancelledBy ?? "-") بتاريخ @Model.CancelledDate.Value.ToString("yyyy-MM-dd HH:mm")</p>
+    }
+</div>

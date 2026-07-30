@@ -1,0 +1,67 @@
+@model IEnumerable<AuditLog>
+@{
+    ViewData["Title"] = "سجل العمليات";
+    int pageNumber = (int)ViewBag.PageNumber;
+    int totalPages = (int)ViewBag.TotalPages;
+    DateTime? from = ViewBag.From;
+    DateTime? to = ViewBag.To;
+}
+
+<div class="page-title"><h2>سجل العمليات (Audit Log)</h2></div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>من تاريخ</label>
+            <input type="date" name="from" value="@(from?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="form-group">
+            <label>إلى تاريخ</label>
+            <input type="date" name="to" value="@(to?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <button type="submit" class="btn btn-primary">فلترة</button>
+        <a href="@Url.Action("Index")" class="btn btn-secondary">تفريغ</a>
+    </form>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>التاريخ</th>
+                <th>المستخدم</th>
+                <th>العملية</th>
+                <th>الجدول</th>
+                <th>السجل</th>
+                <th>القيمة القديمة</th>
+                <th>القيمة الجديدة</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var log in Model)
+            {
+                <tr>
+                    <td class="muted">@log.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@(log.User?.FullName ?? "System")</td>
+                    <td><span class="badge" style="background:#eef2ff; color:#3730a3;">@log.Action</span></td>
+                    <td>@(log.TableName ?? "-")</td>
+                    <td>@(log.RecordId ?? "-")</td>
+                    <td class="muted">@(log.OldValue ?? "-")</td>
+                    <td class="muted">@(log.NewValue ?? "-")</td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr><td colspan="7" class="muted" style="text-align:center; padding:24px;">لا يوجد سجلات</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="pagination">
+        @for (int p = 1; p <= totalPages; p++)
+        {
+            <a class="@(p == pageNumber ? "active" : "")"
+               href="@Url.Action("Index", new { pageNumber = p, from, to })">@p</a>
+        }
+    </div>
+</div>

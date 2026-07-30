@@ -1,0 +1,56 @@
+@model CategoryFormViewModel
+
+@{
+    Layout = null;
+}
+
+<form asp-action="Edit" asp-route-id="@Model.CategoryId" method="post" data-ajax-modal>
+
+    <input type="hidden" asp-for="CategoryId" />
+    <input type="hidden" asp-for="RowVersion" />
+
+    <div class="modal-header">
+        <h5 class="modal-title">
+            تعديل بيانات التصنيف
+        </h5>
+
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal">
+        </button>
+    </div>
+
+    <div class="modal-body">
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="form-grid">
+
+            <div class="form-group full-width">
+                <label asp-for="CategoryName"></label>
+                <input asp-for="CategoryName" class="form-control" />
+                <span asp-validation-for="CategoryName" class="text-danger"></span>
+            </div>
+
+           
+           
+
+        </div>
+
+    </div>
+
+    <div class="modal-footer">
+
+        <button type="button"
+                class="btn btn-cancel"
+                data-bs-dismiss="modal">
+            إلغاء
+        </button>
+
+        <button type="submit" class="btn btn-save">
+            حفظ التعديلات
+        </button>
+
+    </div>
+
+</form>

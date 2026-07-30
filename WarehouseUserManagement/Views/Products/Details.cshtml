@@ -1,0 +1,344 @@
+﻿@model Product
+
+
+<div class="modal-header">
+
+
+    <h5 class="modal-title">
+        تفاصيل الصنف
+    </h5>
+
+
+
+    <button type="button"
+            class="btn-close"
+            data-bs-dismiss="modal">
+    </button>
+
+
+</div>
+
+
+
+
+
+
+
+<div class="modal-body">
+
+
+    <div class="row g-3">
+
+
+
+
+
+        <div class="col-md-6">
+
+            <label>
+                اسم الصنف
+            </label>
+
+            <div class="form-control bg-light">
+
+                @Model.ProductName
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="col-md-6">
+
+            <label>
+                التصنيف
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @Model.Category?.CategoryName
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="col-md-6">
+
+            <label>
+                الباركود
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @(Model.Barcode ?? "-")
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="col-md-6">
+
+            <label>
+                الوحدة
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @Model.Unit
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+
+        <div class="col-md-4">
+
+            <label>
+                الكمية الحالية
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @Model.CurrentQuantity.ToString("N3")
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+
+        <div class="col-md-4">
+
+            <label>
+          السعر 
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @Model.AverageCost.ToString("N2")
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+
+        <div class="col-md-4">
+
+            <label>
+                الحد الأدنى
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @Model.MinimumQuantity.ToString("N3")
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+
+        <div class="col-md-6">
+
+            <label>
+                الحالة
+            </label>
+
+
+            <div>
+
+
+                @if (Model.IsActive)
+                {
+
+                    <span class="status-pill status-active">
+                        مفعل
+                    </span>
+
+                }
+                else
+                {
+
+                    <span class="status-pill status-inactive">
+                        موقوف
+                    </span>
+
+                }
+
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+
+        <div class="col-md-6">
+
+            <label>
+                تاريخ الإنشاء
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @Model.CreatedDate.ToLocalTime()
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="col-md-6">
+
+            <label>
+                أنشأ بواسطة
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @(Model.CreatedBy ?? "-")
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="col-md-6">
+
+            <label>
+                آخر تعديل بواسطة
+            </label>
+
+
+            <div class="form-control bg-light">
+
+                @(Model.UpdatedBy ?? "-")
+
+            </div>
+
+
+        </div>
+
+
+
+
+
+
+        @if (Model.UpdatedDate.HasValue)
+        {
+
+            <div class="col-md-6">
+
+                <label>
+                    آخر تعديل
+                </label>
+
+
+                <div class="form-control bg-light">
+
+                    @Model.UpdatedDate.Value.ToLocalTime()
+
+                </div>
+
+
+            </div>
+
+        }
+
+
+    </div>
+
+
+</div>
+
+
+
+
+
+
+
+
+<div class="modal-footer">
+
+
+    <button type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal">
+
+        إغلاق
+
+    </button>
+
+
+</div>

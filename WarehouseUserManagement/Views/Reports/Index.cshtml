@@ -1,0 +1,70 @@
+@{
+    ViewData["Title"] = "التقارير";
+    bool IsAdmin = User.HasClaim("perm", "*");
+    HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
+    if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
+    {
+        RolePermissions = await PermissionService.GetPermissionNamesForRoleAsync(currentRoleId);
+    }
+    bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
+}
+
+<div class="page-title">
+    <h2>التقارير</h2>
+</div>
+
+@if (Has("View Inventory Report"))
+{
+    <div class="card">
+        <h3>📦 تقارير المخزون</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            <a class="btn btn-secondary" asp-action="Inventory">المخزون الحالي / قيمة المخزون</a>
+            <a class="btn btn-secondary" asp-action="Inventory" asp-route-OnlyLowStock="true">الأصناف الناقصة</a>
+            <a class="btn btn-secondary" asp-action="ItemCard">كشف حركة صنف (Item Card)</a>
+        </div>
+    </div>
+}
+
+@if (Has("View Purchase Report"))
+{
+    <div class="card" style="margin-top:16px">
+        <h3>🧾 تقارير المشتريات</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            <a class="btn btn-secondary" asp-action="Purchases">تقرير المشتريات</a>
+            <a class="btn btn-secondary" asp-action="PurchaseBySupplier">المشتريات حسب المورد</a>
+            <a class="btn btn-secondary" asp-action="LastPurchasePrice">آخر أسعار الشراء</a>
+        </div>
+    </div>
+}
+
+@if (Has("View Issue Report"))
+{
+    <div class="card" style="margin-top:16px">
+        <h3>📤 تقارير الصادر</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            <a class="btn btn-secondary" asp-action="IssueByDepartment">الصادر حسب القسم</a>
+            <a class="btn btn-secondary" asp-action="DepartmentConsumption">أكثر الأقسام استهلاكاً</a>
+        </div>
+    </div>
+}
+
+@if (Has("View StockTake"))
+{
+    <div class="card" style="margin-top:16px">
+        <h3>📋 تقارير الجرد</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            <a class="btn btn-secondary" asp-action="StockTakeReport">نتائج وفروقات الجرد</a>
+        </div>
+    </div>
+}
+
+@if (Has("View Audit Log"))
+{
+    <div class="card" style="margin-top:16px">
+        <h3>👤 تقارير المستخدمين</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            <a class="btn btn-secondary" asp-action="UserActivity">ملخص نشاط المستخدمين</a>
+            <a class="btn btn-secondary" asp-controller="AuditLogs" asp-action="Index">سجل العمليات الكامل</a>
+        </div>
+    </div>
+}

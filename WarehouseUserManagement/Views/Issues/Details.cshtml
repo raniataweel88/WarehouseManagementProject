@@ -1,0 +1,90 @@
+@model IssueDetailsViewModel
+@{
+    ViewData["Title"] = "تفاصيل سند الصرف";
+
+    string StatusLabel(IssueStatus s) => s switch
+    {
+        IssueStatus.Draft => "مسودة",
+        IssueStatus.Posted => "معتمد",
+        IssueStatus.Cancelled => "ملغى",
+        _ => s.ToString()
+    };
+
+    string StatusClass(IssueStatus s) => s switch
+    {
+        IssueStatus.Draft => "status-warning",
+        IssueStatus.Posted => "status-active",
+        IssueStatus.Cancelled => "status-inactive",
+        _ => "status-info"
+    };
+}
+
+<div class="page-title">
+    <h2>سند صرف رقم @Model.IssueNumber</h2>
+    <a asp-action="Index" class="btn btn-secondary">رجوع للقائمة</a>
+</div>
+
+<div class="card">
+    <div class="form-grid">
+        <div class="form-group">
+            <label>رقم الصرف</label>
+            <p>@Model.IssueNumber</p>
+        </div>
+        <div class="form-group">
+            <label>التاريخ</label>
+            <p>@Model.IssueDate.ToString("yyyy-MM-dd")</p>
+        </div>
+        <div class="form-group">
+            <label>القسم المستلم</label>
+            <p>@Model.DepartmentName</p>
+        </div>
+        <div class="form-group">
+            <label>اسم المستلم</label>
+            <p>@Model.ReceiverName</p>
+        </div>
+        <div class="form-group full-width">
+            <label>ملاحظات</label>
+            <p>@(Model.Notes ?? "-")</p>
+        </div>
+        <div class="form-group">
+            <label>الحالة</label>
+            <p><span class="status-pill @StatusClass(Model.Status)">@StatusLabel(Model.Status)</span></p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>الصنف</th>
+                    <th>الوحدة</th>
+                    <th>الكمية</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    <tr>
+                        <td>@l.ProductName</td>
+                        <td class="muted">@l.Unit</td>
+                        <td>@l.Quantity</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <p class="muted">أنشئ بواسطة @(Model.CreatedBy ?? "-") بتاريخ @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
+    @if (Model.PostedDate != null)
+    {
+        <p class="muted">اعتُمد بواسطة @(Model.PostedBy ?? "-") بتاريخ @Model.PostedDate.Value.ToString("yyyy-MM-dd HH:mm")</p>
+    }
+    @if (Model.CancelledDate != null)
+    {
+        <p class="muted">أُلغي بواسطة @(Model.CancelledBy ?? "-") بتاريخ @Model.CancelledDate.Value.ToString("yyyy-MM-dd HH:mm")</p>
+    }
+</div>

@@ -1,0 +1,77 @@
+@model StockTakeDetailsViewModel
+@{
+    ViewData["Title"] = "تفاصيل سند الجرد";
+
+    string StatusLabel(StockTakeStatus s) => s switch
+    {
+        StockTakeStatus.Draft => "مسودة",
+        StockTakeStatus.Posted => "معتمد",
+        _ => s.ToString()
+    };
+
+    string StatusClass(StockTakeStatus s) => s switch
+    {
+        StockTakeStatus.Draft => "status-warning",
+        StockTakeStatus.Posted => "status-active",
+        _ => "status-info"
+    };
+}
+
+<div class="page-title">
+    <h2>سند جرد بتاريخ @Model.StockTakeDate.ToString("yyyy-MM-dd")</h2>
+    <a asp-action="Index" class="btn btn-secondary">رجوع للقائمة</a>
+</div>
+
+<div class="card">
+    <div class="form-grid">
+        <div class="form-group">
+            <label>تاريخ الجرد</label>
+            <p>@Model.StockTakeDate.ToString("yyyy-MM-dd")</p>
+        </div>
+        <div class="form-group">
+            <label>الحالة</label>
+            <p><span class="status-pill @StatusClass(Model.Status)">@StatusLabel(Model.Status)</span></p>
+        </div>
+        <div class="form-group full-width">
+            <label>ملاحظات</label>
+            <p>@(Model.Notes ?? "-")</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>الصنف</th>
+                    <th>الوحدة</th>
+                    <th>كمية النظام</th>
+                    <th>الكمية الفعلية</th>
+                    <th>الفرق</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    <tr>
+                        <td>@l.ProductName</td>
+                        <td class="muted">@l.Unit</td>
+                        <td>@l.SystemQuantity</td>
+                        <td>@l.ActualQuantity</td>
+                        <td class="@(l.Difference < 0 ? "text-danger" : l.Difference > 0 ? "text-success" : "")">@l.Difference</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <p class="muted">أنشئ بواسطة @(Model.CreatedBy ?? "-") بتاريخ @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</p>
+    @if (Model.PostedDate != null)
+    {
+        <p class="muted">اعتُمد بواسطة @(Model.PostedBy ?? "-") بتاريخ @Model.PostedDate.Value.ToString("yyyy-MM-dd HH:mm")</p>
+        <p class="muted">القيم أعلاه (كمية النظام والفرق) تعكس آخر تحديث تم احتسابه فعلياً وقت الاعتماد.</p>
+    }
+</div>

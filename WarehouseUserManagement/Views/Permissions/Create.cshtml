@@ -1,0 +1,34 @@
+@model Permission
+@{
+    ViewData["Title"] = "صلاحية جديدة";
+}
+
+<div class="page-title"><h2>إضافة صلاحية جديدة</h2></div>
+
+<div class="card" style="max-width:480px;">
+    <form asp-action="Create" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="form-group">
+            <label asp-for="PermissionName">اسم الصلاحية</label>
+            <input asp-for="PermissionName" type="text" placeholder="مثال: CREATE_PRODUCT" />
+            <span asp-validation-for="PermissionName" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="ModuleName">الوحدة</label>
+            <input asp-for="ModuleName" type="text" placeholder="مثال: Products" />
+            <span asp-validation-for="ModuleName" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="Description">الوصف</label>
+            <textarea asp-for="Description" rows="2"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-Prim">حفظ</button>
+            <a class="btn btn-secondary" asp-action="Index">إلغاء</a>
+        </div>
+    </form>
+</div>

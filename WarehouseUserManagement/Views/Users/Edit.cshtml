@@ -1,0 +1,128 @@
+@model UserFormViewModel
+
+@{
+    Layout = null;
+}
+
+<form asp-action="Edit" asp-route-id="@Model.UserId" method="post" data-ajax-modal>
+
+    <input type="hidden" asp-for="UserId" />
+    <input type="hidden" asp-for="RowVersion" />
+
+    <div class="modal-header">
+        <h5 class="modal-title">
+            تعديل بيانات المستخدم
+        </h5>
+
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal">
+        </button>
+    </div>
+
+    <div class="modal-body">
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="form-grid">
+
+            <div class="form-group">
+                <label asp-for="FullName"></label>
+                <input asp-for="FullName" class="form-control" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Username"></label>
+                <input asp-for="Username"
+                       class="form-control"
+                       autocomplete="off" />
+                <span asp-validation-for="Username" class="text-danger"></span>
+            </div>
+
+            <div class="form-group full-width">
+                <label asp-for="Password">
+                    كلمة مرور جديدة (اختياري)
+                </label>
+
+                <input asp-for="Password"
+                       type="password"
+                       class="form-control"
+                       autocomplete="new-password" />
+
+                <span asp-validation-for="Password"
+                      class="text-danger"></span>
+
+                <small class="password-hint">
+                    اتركها فارغة إذا لم ترغب بتغيير كلمة المرور.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="RoleId"></label>
+
+                <select asp-for="RoleId" class="form-select">
+                    @foreach (var r in Model.AvailableRoles)
+                    {
+                        <option value="@r.RoleId">
+                            @r.RoleName
+                        </option>
+                    }
+                </select>
+
+                <span asp-validation-for="RoleId"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Email"></label>
+
+                <input asp-for="Email"
+                       type="email"
+                       class="form-control" />
+
+                <span asp-validation-for="Email"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Phone"></label>
+
+                <input asp-for="Phone"
+                       class="form-control" />
+
+                <span asp-validation-for="Phone"
+                      class="text-danger"></span>
+            </div>
+
+            <div class="form-group full-width">
+                <div class="form-check">
+                    <input asp-for="IsActive"
+                           class="form-check-input" />
+
+                    <label asp-for="IsActive"
+                           class="form-check-label">
+                        الحساب مفعل
+                    </label>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="modal-footer">
+
+        <button type="button"
+                class="btn btn-cancel"
+                data-bs-dismiss="modal">
+            إلغاء
+        </button>
+
+        <button type="submit" class="btn btn-save">
+            حفظ التعديلات
+        </button>
+
+    </div>
+
+</form>

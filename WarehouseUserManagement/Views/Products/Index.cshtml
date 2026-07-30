@@ -1,0 +1,1371 @@
+@model ProductListViewModel
+
+@{
+
+    ViewData["Title"] = "الأصناف";
+
+    bool IsAdmin = User.HasClaim("perm", "*");
+    HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
+    if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
+    {
+        RolePermissions = await PermissionService.GetPermissionNamesForRoleAsync(currentRoleId);
+    }
+
+    bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="page-title">
+
+
+
+    <h2>
+
+        إدارة الأصناف
+
+    </h2>
+
+
+
+
+
+    @if (Has("Add Product"))
+
+    {
+
+        <button class="btn btn-Prim"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#createProductModal">
+
+
+
+            + صنف جديد
+
+
+
+        </button>
+
+    }
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+@if (TempData["Success"] != null)
+
+{
+
+    <script>
+
+
+
+        Swal.fire({
+
+
+
+        icon: 'success',
+
+
+
+        title: 'تم بنجاح',
+
+
+
+        text: '@TempData["Success"]',
+
+
+
+        timer: 2000,
+
+
+
+        showConfirmButton: false
+
+
+
+        });
+
+
+
+    </script>
+
+}
+
+
+
+
+
+
+
+@if (TempData["Error"] != null)
+
+{
+
+    <script>
+
+
+
+        Swal.fire({
+
+
+
+        icon: 'error',
+
+
+
+        title: 'خطأ',
+
+
+
+        text: '@TempData["Error"]'
+
+
+
+        });
+
+
+
+    </script>
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- Search -->
+
+
+
+<div class="card">
+
+
+
+
+
+    <form method="get" class="toolbar">
+
+
+
+
+
+        <div class="form-group">
+
+
+
+            <label>
+
+                بحث
+
+            </label>
+
+
+
+
+
+            <input type="search"
+                   name="SearchTerm"
+                   value="@Model.SearchTerm"
+                   class="form-control"
+                   placeholder="اسم الصنف أو الباركود" />
+
+
+
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+        <div class="form-group">
+
+
+
+            <label>
+
+                التصنيف
+
+            </label>
+
+
+
+
+
+            <select name="CategoryFilter"
+                    class="form-select">
+
+
+
+
+
+                <option value="">
+
+                    الكل
+
+                </option>
+
+
+
+
+
+
+
+                @foreach (var c in Model.CategoryOptions)
+
+                {
+
+
+
+                    if (Model.CategoryFilter == c.CategoryId)
+
+                    {
+
+
+
+                        <option value="@c.CategoryId" selected>
+
+                            @c.CategoryName
+
+                        </option>
+
+
+
+                    }
+
+                    else
+
+                    {
+
+
+
+                        <option value="@c.CategoryId">
+
+                            @c.CategoryName
+
+                        </option>
+
+
+
+                    }
+
+
+
+                }
+
+
+
+
+
+            </select>
+
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <div class="form-group">
+
+
+
+            <label>
+
+                الحالة
+
+            </label>
+
+
+
+
+
+            <select name="StatusFilter"
+                    class="form-select">
+
+
+
+
+
+                <option value="">
+
+                    الكل
+
+                </option>
+
+
+
+
+
+
+
+                @if (Model.StatusFilter == true)
+
+                {
+
+                    <option value="true" selected>
+
+                        مفعل
+
+                    </option>
+
+                }
+
+                else
+
+                {
+
+                    <option value="true">
+
+                        مفعل
+
+                    </option>
+
+                }
+
+
+
+
+
+
+
+                @if (Model.StatusFilter == false)
+
+                {
+
+                    <option value="false" selected>
+
+                        موقوف
+
+                    </option>
+
+                }
+
+                else
+
+                {
+
+                    <option value="false">
+
+                        موقوف
+
+                    </option>
+
+                }
+
+
+
+
+
+
+
+            </select>
+
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <div class="form-group">
+
+
+
+
+
+            <label>
+
+                &nbsp;
+
+            </label>
+
+
+
+
+
+
+
+            <div class="form-check">
+
+
+
+
+
+                <input class="form-check-input"
+                       type="checkbox"
+                       name="LowStockOnly"
+                       value="true"
+                @(Model.LowStockOnly ? "checked" : "") />
+
+
+
+
+
+
+
+                <label class="form-check-label">
+
+
+
+                    منخفض المخزون
+
+
+
+                </label>
+
+
+
+
+
+            </div>
+
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <button type="submit"
+                class="btn btn-Prim">
+
+
+
+            بحث
+
+
+
+        </button>
+
+
+
+
+
+
+
+        <a asp-action="Index"
+           class="btn btn-secondary">
+
+
+
+            تفريغ
+
+
+
+        </a>
+
+
+
+
+
+
+
+    </form>
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- Products Table -->
+
+
+
+<div class="card">
+
+
+
+
+
+    <div class="table-responsive">
+
+
+
+
+
+        <table>
+
+
+
+
+
+            <thead>
+
+
+
+                <tr>
+
+
+
+                    <th>
+
+                        اسم الصنف
+
+                    </th>
+
+
+                    <th>
+
+                        الباركود
+
+                    </th>
+
+
+
+
+
+                    <th>
+
+                        الوحدة
+
+                    </th>
+
+
+                    <th>
+
+                        الكمية الحالية
+
+                    </th>
+
+                    <th>
+
+                        الإجراءات
+
+                    </th>
+
+
+
+
+
+                </tr>
+
+
+
+
+
+            </thead>
+
+
+
+
+
+
+
+
+
+
+
+            <tbody>
+
+
+
+
+
+
+
+                @foreach (var p in Model.Products)
+
+                {
+
+
+
+                    <tr>
+
+
+
+
+
+                        <td>
+
+                            @p.ProductName
+
+                        </td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        <td>
+
+                            @(p.Barcode ?? "-")
+
+                        </td>
+
+
+
+
+
+
+
+
+
+                        <td>
+
+                            @p.Unit
+
+                        </td>
+                        <td>
+                            @p.CurrentQuantity.ToString("N3")
+
+                            @if (p.IsLowStock)
+
+                            {
+                                <span class="status-pill status-warning">منخفض</span>
+                            }
+                        </td>
+               
+                        <td class="actions-cell">
+                            @if (Has("View Product")){
+                                <button class="btn btn-sm btn-info viewProductBtn"
+                                        data-id="@p.ProductId"> تفاصيل</button>
+                            }
+                            @if (Has("Edit Product"))
+                            {
+                                <button class="btn btn-sm btn-secondary editProductBtn"
+                                        data-id="@p.ProductId">تعديل</button>
+                            }
+
+                         @if (Has("Delete Product"))
+                            {
+                                <form asp-action="Delete"
+                                      asp-route-id="@p.ProductId"
+                                      method="post"
+                                      class="delete-product-form"
+                                      style="display:inline">
+                                    @Html.AntiForgeryToken()
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger delete-btn">
+                                        حذف
+                                    </button>
+
+                                </form>
+
+                            }
+
+                        </td>
+
+                    </tr>
+
+                }
+
+                @if (!Model.Products.Any())
+
+                {
+
+
+
+                    <tr>
+
+
+
+                        <td colspan="9"
+                            style="text-align:center;padding:20px">
+
+
+
+                            لا يوجد نتائج
+
+
+
+                        </td>
+
+
+
+                    </tr>
+
+
+
+                }
+
+
+
+
+
+            </tbody>
+
+
+
+
+
+        </table>
+
+
+
+
+
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<!-- Pagination -->
+
+
+
+<div class="pagination">
+
+
+
+
+
+    @for (int i = 1; i <= Model.TotalPages; i++)
+
+    {
+
+
+
+        <a class="@(i == Model.PageNumber ? "active" : "")"
+           href="@Url.Action("Index",
+
+           new
+
+           {
+
+               SearchTerm = Model.SearchTerm,
+
+               CategoryFilter = Model.CategoryFilter,
+
+               StatusFilter = Model.StatusFilter,
+
+               LowStockOnly = Model.LowStockOnly,
+
+               PageNumber = i,
+
+               PageSize = Model.PageSize
+
+           })">
+
+
+
+    @i
+
+
+
+</a>
+
+
+
+
+
+}
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+<p class="muted">
+
+
+
+    إجمالي النتائج:
+
+    @Model.TotalCount
+
+
+
+</p>
+
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ================= CREATE MODAL ================= -->
+
+
+
+
+
+<div class="modal fade"
+     id="createProductModal"
+     tabindex="-1">
+
+
+
+
+
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+
+
+
+
+
+        <div class="modal-content">
+
+
+
+
+
+
+
+            <form asp-action="Create"
+                  method="post">
+
+
+
+
+
+                @Html.AntiForgeryToken()
+
+
+
+
+
+
+
+                <div class="modal-header">
+
+
+
+
+
+                    <h5 class="modal-title">
+
+
+
+                        إضافة صنف جديد
+
+
+
+                    </h5>
+
+
+
+
+
+
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal">
+                    </button>
+
+
+
+
+
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row g-3">
+                        <div class="col-md-12">
+
+                            <label class="form-label">
+
+                                اسم الصنف
+                            </label>
+                            <input name="ProductName"
+                                   class="form-control"
+                                   required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">التصنيف</label>
+                            <select name="CategoryId"
+                                    class="form-select">
+                                @foreach (var c in Model.CategoryOptions)
+
+                                {
+                                    <option value="@c.CategoryId">
+                                        @c.CategoryName
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">          الوحدة </label>
+
+                            <input name="Unit"
+                                   class="form-control"
+                                   placeholder="قطعة / كرتون / كغم" />
+
+
+
+
+
+                        </div>
+                        <div class="col-md-6">
+
+                            <label class="form-label">
+
+
+
+                                الباركود
+
+
+
+                            </label>
+
+                           <input name="Barcode"
+       id="Barcode"
+       class="form-control"
+       autocomplete="off" />
+
+
+
+                        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        <div class="col-md-6">
+
+
+
+
+
+                            <label class="form-label">
+
+
+
+                                الحد الأدنى للكمية
+
+
+
+                            </label>
+
+
+
+
+
+
+
+                            <input name="MinimumQuantity"
+                                   type="number"
+                                   step="0.001"
+                                   min="0"
+                                   value="0"
+                                   class="form-control" />
+
+
+
+
+
+                        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        <div class="col-md-6">
+
+                            <label class="form-label">
+
+
+
+                                الكمية الحالية
+                            </label>
+                            <input name="CurrentQuantity"
+                                   type="number"
+                                   step="0.001"
+                                   min="0"
+                                   value="0"
+                                   class="form-control" />
+                        </div>
+
+                        <div class="col-md-6">
+
+
+
+
+
+                            <label class="form-label">
+
+
+
+                             السعر
+
+
+
+                            </label>
+
+
+
+
+
+
+
+                            <input name="AverageCost"
+                                   type="number"
+                                   step="0.01"
+                                   min="0"
+                                   value="0"
+                                   class="form-control" />
+
+
+
+
+
+                        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        <div class="col-md-12">
+ 
+                        </div>
+ 
+                    </div>
+ 
+                </div>
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal">
+                        إلغاء
+
+                    </button>
+                    <button type="submit"
+                            class="btn btn-Prim">
+
+                        حفظ
+
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================= EDIT MODAL ================= -->
+<div class="modal fade"
+     id="editProductModal"
+     tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+
+        <div class="modal-content"
+             id="editProductContent">
+        </div>
+
+    </div>
+</div>
+<div class="modal fade"
+     id="detailsProductModal"
+     tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+
+
+
+
+
+        <div class="modal-content"
+             id="detailsProductContent">
+        </div>
+
+
+
+
+
+    </div>
+
+
+
+
+
+</div>
+@section Scripts
+{
+    <script>
+        // ==============================
+        // Reset Create Modal
+        // ==============================
+        const createModal = document.getElementById("createProductModal");
+
+        if (createModal) {
+            createModal.addEventListener("hidden.bs.modal", function () {
+                const form = this.querySelector("form");
+                if (form) form.reset();
+            });
+        }
+
+        // ==============================
+        // Edit Product Modal
+        // ==============================
+        document.querySelectorAll(".editProductBtn").forEach(btn => {
+            btn.addEventListener("click", function () {
+
+                fetch('/Products/Edit/' + this.dataset.id)
+                    .then(r => r.text())
+                    .then(html => {
+
+                        document.getElementById("editProductContent").innerHTML = html;
+
+                        new bootstrap.Modal(
+                            document.getElementById("editProductModal")
+                        ).show();
+                    });
+            });
+        });
+
+        // ==============================
+        // Details Product Modal
+        // ==============================
+        document.querySelectorAll(".viewProductBtn").forEach(btn => {
+            btn.addEventListener("click", function () {
+
+                fetch('/Products/Details/' + this.dataset.id)
+                    .then(r => r.text())
+                    .then(html => {
+
+                        document.getElementById("detailsProductContent").innerHTML = html;
+
+                        new bootstrap.Modal(
+                            document.getElementById("detailsProductModal")
+                        ).show();
+                    });
+            });
+        });
+
+        // ==============================
+        // Delete Confirmation
+        // ==============================
+        document.querySelectorAll(".delete-btn").forEach(btn => {
+            btn.addEventListener("click", function () {
+
+                const form = this.closest(".delete-product-form");
+
+                Swal.fire({
+                    title: "هل أنت متأكد؟",
+                    html: "سيتم حذف الصنف.<br><small>يمكن استعادته لاحقاً من قاعدة البيانات.</small>",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "نعم، احذف",
+                    cancelButtonText: "إلغاء",
+                    confirmButtonColor: "#dc3545",
+                    cancelButtonColor: "#6c757d",
+                    reverseButtons: true
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+
+            });
+        });
+
+        // ==============================
+        // Success / Error Messages
+        // ==============================
+        @if (TempData["Success"] != null)
+        {
+            <text>
+            Swal.fire({
+                icon: "success",
+                title: "تمت العملية",
+                text: "@TempData["Success"]",
+                timer: 1800,
+                showConfirmButton: false
+            });
+            </text>
+        }
+
+        @if (TempData["Error"] != null)
+        {
+            <text>
+            Swal.fire({
+                icon: "error",
+                title: "خطأ",
+                text: "@TempData["Error"]"
+            });
+            </text>
+        }
+        document.getElementById("Barcode")
+        .addEventListener("keydown", function(e){
+
+        if(e.key === "Enter"){
+        e.preventDefault();
+
+        // هنا تقدر تعمل بحث أو أي عملية تريدها
+        console.log("Barcode scanned:", this.value);
+
+        return false;
+        }
+
+        });
+    </script>
+}
+
+ 

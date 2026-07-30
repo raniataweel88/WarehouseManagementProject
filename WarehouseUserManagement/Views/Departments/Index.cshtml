@@ -1,0 +1,198 @@
+@model DepartmentListViewModel
+@{
+    ViewData["Title"] = "الأقسام";
+    bool IsAdmin = User.HasClaim("perm", "*");
+    HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
+    if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
+    {
+        RolePermissions = await PermissionService.GetPermissionNamesForRoleAsync(currentRoleId);
+    }
+    bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
+}
+
+<div class="page-title">
+    <h2>إدارة الأقسام</h2>
+
+    @if (Has("Add Department"))
+    {
+        <button class="btn btn-Prim"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#createDepartmentModal">
+            + قسم جديد
+        </button>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+   
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>بحث (اسم القسم)</label>
+            <input type="search" name="SearchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
+        </div>
+        <div class="form-group">
+            <label>الحالة</label>
+            <select name="StatusFilter">
+                <option value="">الكل</option>
+                <option value="true" selected="@(Model.StatusFilter == true)">نشط</option>
+                <option value="false" selected="@(Model.StatusFilter == false)">محذوف</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("Index")" class="btn btn-secondary">تفريغ</a>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>اسم القسم</th>
+                    <th>الحالة</th>
+                    <th class="actions-col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model.Departments)
+                {
+                    <tr>
+                        <td>@d.DepartmentName</td>
+                        <td>
+                            @if (d.IsActive)
+                            {
+                                <span class="status-pill status-active">نشط</span>
+                            }
+                            else
+                            {
+                                <span class="status-pill status-inactive">محذوف</span>
+                            }
+                        </td>
+                        <td class="actions-cell">
+                            @if (d.IsActive)
+                            {
+                                @if (Has("Edit Department"))
+                                {
+                                    <button class="btn btn-sm btn-secondary editDepartmentBtn" data-id="@d.DepartmentId">
+                                        تعديل
+                                    </button>
+                                }
+                                @if (Has("Deactivate Department"))
+                                {
+                                    <form asp-action="Delete" asp-route-id="@d.DepartmentId" method="post" style="display:inline"
+                                          data-confirm="سيتم حذف القسم نهائياً ولن يكون بالإمكان استرجاعه من الواجهة. هل أنت متأكد؟">
+                                        <button type="submit" class="btn btn-sm btn-danger">حذف</button>
+                                    </form>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Departments.Any())
+                {
+                    <tr><td colspan="3" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        @for (int p = 1; p <= Model.TotalPages; p++)
+        {
+            <a class="@(p == Model.PageNumber ? "active" : "")"
+               href="@Url.Action("Index", new { SearchTerm = Model.SearchTerm, StatusFilter = Model.StatusFilter, PageNumber = p, PageSize = Model.PageSize })">@p</a>
+        }
+    </div>
+    <p class="muted">إجمالي النتائج: @Model.TotalCount</p>
+</div>
+
+<div class="modal fade" id="createDepartmentModal" tabindex="-1" aria-labelledby="createDepartmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+
+            <form asp-action="Create" method="post">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createDepartmentModalLabel">
+                        إضافة قسم جديد
+                    </h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Close">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label class="form-label">اسم القسم</label>
+                            <input name="DepartmentName" class="form-control" />
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal">
+                        إلغاء
+                    </button>
+
+                    <button type="submit" class="btn btn-Prim">
+                        حفظ
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editDepartmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" id="editDepartmentContent">
+        </div>
+    </div>
+</div>
+
+<script>
+    const createDepartmentModal = document.getElementById('createDepartmentModal');
+
+    createDepartmentModal.addEventListener('hidden.bs.modal', function () {
+        const form = this.querySelector('form');
+        form.reset();
+        form.querySelectorAll('.text-danger').forEach(e => {
+            if (!e.classList.contains('validation-summary-errors')) {
+                e.textContent = '';
+            }
+        });
+    });
+
+    document.querySelectorAll(".editDepartmentBtn").forEach(btn => {
+        btn.addEventListener("click", function () {
+            let id = this.dataset.id;
+            fetch('/Departments/Edit/' + id)
+                .then(r => r.text())
+                .then(html => {
+                    document.getElementById("editDepartmentContent").innerHTML = html;
+                    new bootstrap.Modal(document.getElementById("editDepartmentModal")).show();
+                });
+        });
+    });
+</script>

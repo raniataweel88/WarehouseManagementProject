@@ -1,0 +1,94 @@
+@model ItemCardViewModel
+@{
+    ViewData["Title"] = "كشف حركة صنف";
+}
+
+<div class="page-title">
+    <h2>@ViewData["Title"]</h2>
+    <a asp-action="Index" class="btn btn-secondary">⟵ قائمة التقارير</a>
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>الصنف</label>
+            <select name="ProductId" required>
+                <option value="">-- اختر الصنف --</option>
+                @foreach (var p in Model.Products)
+                {
+                    <option value="@p.ProductId" selected="@(Model.Filter.ProductId == p.ProductId)">@p.ProductName</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label>من تاريخ</label>
+            <input type="date" name="FromDate" value="@Model.Filter.FromDate?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-group">
+            <label>إلى تاريخ</label>
+            <input type="date" name="ToDate" value="@Model.Filter.ToDate?.ToString("yyyy-MM-dd")" />
+        </div>
+        <button type="submit" class="btn btn-Prim">عرض</button>
+    </form>
+</div>
+
+@if (Model.SelectedProduct is not null)
+{
+    <div class="stats-grid" style="margin-top:16px;">
+        <div class="stat-card">
+            <div class="num">@Model.OpeningBalance</div>
+            <div class="label">الرصيد الافتتاحي</div>
+        </div>
+        <div class="stat-card">
+            <div class="num">@Model.ClosingBalance</div>
+            <div class="label">الرصيد الختامي</div>
+        </div>
+        <div class="stat-card">
+            <div class="num">@Model.SelectedProduct.CurrentQuantity</div>
+            <div class="label">الكمية الحالية بالنظام</div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>الحركة</th>
+                        <th>وارد</th>
+                        <th>صادر</th>
+                        <th>الرصيد</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.OpeningBalance != 0)
+                    {
+                        <tr class="muted">
+                            <td colspan="4">رصيد افتتاحي</td>
+                            <td>@Model.OpeningBalance</td>
+                        </tr>
+                    }
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td class="muted">@r.TransactionDate.ToString("yyyy-MM-dd")</td>
+                            <td>@r.MovementType</td>
+                            <td>@(r.In > 0 ? r.In.ToString() : "-")</td>
+                            <td>@(r.Out > 0 ? r.Out.ToString() : "-")</td>
+                            <td>@r.RunningBalance</td>
+                        </tr>
+                    }
+                    @if (!Model.Rows.Any())
+                    {
+                        <tr><td colspan="5" class="muted" style="text-align:center; padding:24px;">لا يوجد حركات لهذا الصنف ضمن الفترة المحددة</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <p class="muted" style="margin-top:16px;">الرجاء اختيار صنف لعرض كشف حركته.</p>
+}

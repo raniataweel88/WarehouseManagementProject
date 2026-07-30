@@ -1,0 +1,118 @@
+@model StockTakeListViewModel
+@{
+    ViewData["Title"] = "الجرد";
+    bool IsAdmin = User.HasClaim("perm", "*");
+    HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
+    if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
+    {
+        RolePermissions = await PermissionService.GetPermissionNamesForRoleAsync(currentRoleId);
+    }
+    bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
+
+    string StatusLabel(StockTakeStatus s) => s switch
+    {
+        StockTakeStatus.Draft => "مسودة",
+        StockTakeStatus.Posted => "معتمد",
+        _ => s.ToString()
+    };
+
+    string StatusClass(StockTakeStatus s) => s switch
+    {
+        StockTakeStatus.Draft => "status-warning",
+        StockTakeStatus.Posted => "status-active",
+        _ => "status-info"
+    };
+}
+
+<div class="page-title">
+    <h2>الجرد</h2>
+
+    @if (Has("Create StockTake"))
+    {
+        <a asp-action="Create" class="btn btn-Prim">+ سند جرد جديد</a>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>بحث (ملاحظات)</label>
+            <input type="search" name="SearchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
+        </div>
+        <div class="form-group">
+            <label>الحالة</label>
+            <select name="StatusFilter">
+                <option value="">الكل</option>
+                <option value="@((int)StockTakeStatus.Draft)" selected="@(Model.StatusFilter == StockTakeStatus.Draft)">مسودة</option>
+                <option value="@((int)StockTakeStatus.Posted)" selected="@(Model.StatusFilter == StockTakeStatus.Posted)">معتمد</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("Index")" class="btn btn-secondary">تفريغ</a>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>تاريخ الجرد</th>
+                    <th>ملاحظات</th>
+                    <th>عدد الأصناف</th>
+                    <th>الحالة</th>
+                    <th class="actions-col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.StockTakes)
+                {
+                    <tr>
+                        <td class="muted">@s.StockTakeDate.ToString("yyyy-MM-dd")</td>
+                        <td>@(s.Notes ?? "-")</td>
+                        <td>@s.LinesCount</td>
+                        <td><span class="status-pill @StatusClass(s.Status)">@StatusLabel(s.Status)</span></td>
+                        <td class="actions-cell">
+                            <a asp-action="Details" asp-route-id="@s.StockTakeId" class="btn btn-sm btn-secondary">عرض</a>
+
+                            @if (s.Status == StockTakeStatus.Draft && Has("Edit StockTake"))
+                            {
+                                <a asp-action="Edit" asp-route-id="@s.StockTakeId" class="btn btn-sm btn-secondary">تعديل</a>
+                            }
+
+                            @if (s.Status == StockTakeStatus.Draft && Has("Post StockTake"))
+                            {
+                                <form asp-action="Post" asp-route-id="@s.StockTakeId" method="post" style="display:inline" data-confirm="اعتماد سند الجرد سيسوّي كميات المخزون فوراً حسب الفروقات، متابعة؟">
+                                    <button type="submit" class="btn btn-sm btn-success">اعتماد</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (!Model.StockTakes.Any())
+                {
+                    <tr><td colspan="5" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        @for (int p = 1; p <= Model.TotalPages; p++)
+        {
+            <a class="@(p == Model.PageNumber ? "active" : "")"
+               href="@Url.Action("Index", new { SearchTerm = Model.SearchTerm, StatusFilter = Model.StatusFilter, PageNumber = p, PageSize = Model.PageSize })">@p</a>
+        }
+    </div>
+    <p class="muted">إجمالي النتائج: @Model.TotalCount</p>
+</div>
