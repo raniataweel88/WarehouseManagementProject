@@ -47,9 +47,9 @@ namespace WarehouseUserManagement.Controllers
         {
             var rows = await BuildInventoryRowsAsync(filter);
             var sb = new StringBuilder();
-            sb.AppendLine("الصنف,التصنيف,الوحدة,الكمية الحالية,الحد الأدنى,متوسط التكلفة,قيمة المخزون");
+            sb.AppendLine("الصنف,الباركود,التصنيف,الوحدة,الكمية الحالية,الحد الأدنى,متوسط التكلفة,قيمة المخزون");
             foreach (var r in rows)
-                sb.AppendLine($"{Csv(r.ProductName)},{Csv(r.CategoryName)},{Csv(r.Unit)},{r.CurrentQuantity},{r.MinimumQuantity},{r.AverageCost},{r.TotalValue}");
+                sb.AppendLine($"{Csv(r.ProductName)},{Csv(r.Barcode)},{Csv(r.CategoryName)},{Csv(r.Unit)},{r.CurrentQuantity},{r.MinimumQuantity},{r.AverageCost},{r.TotalValue}");
 
             return CsvFile(sb, filter.OnlyLowStock ? "low-stock-report" : "inventory-report");
         }
@@ -67,7 +67,7 @@ namespace WarehouseUserManagement.Controllers
             if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
             {
                 var term = filter.SearchTerm.Trim();
-                query = query.Where(p => p.ProductName.Contains(term));
+                query = query.Where(p => p.ProductName.Contains(term) || (p.Barcode != null && p.Barcode.Contains(term)));
             }
 
             var rows = await query
@@ -75,6 +75,7 @@ namespace WarehouseUserManagement.Controllers
                 .Select(p => new InventoryReportRow
                 {
                     ProductName = p.ProductName,
+                    Barcode = p.Barcode,
                     CategoryName = p.Category!.CategoryName,
                     Unit = p.Unit,
                     CurrentQuantity = p.CurrentQuantity,
@@ -180,7 +181,7 @@ namespace WarehouseUserManagement.Controllers
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
-                query = query.Where(d => d.Product!.ProductName.Contains(searchTerm));
+                query = query.Where(d => d.Product!.ProductName.Contains(searchTerm) || (d.Product!.Barcode != null && d.Product!.Barcode.Contains(searchTerm)));
 
             // نجلب كل السطور المعتمدة ثم نأخذ آخر سعر لكل صنف بالذاكرة (تفادياً لمحدودية ترجمة
             // GroupBy + OrderBy + First المعقّدة إلى SQL عبر EF Core).
@@ -188,6 +189,7 @@ namespace WarehouseUserManagement.Controllers
                 .Select(d => new
                 {
                     d.Product!.ProductName,
+                    d.Product.Barcode,
                     SupplierName = d.PurchaseInvoice!.SupplierName,
                     d.UnitPrice,
                     d.PurchaseInvoice.InvoiceDate
@@ -202,6 +204,7 @@ namespace WarehouseUserManagement.Controllers
                     return new LastPurchasePriceRow
                     {
                         ProductName = g.Key,
+                        Barcode = last.Barcode,
                         SupplierName = last.SupplierName,
                         LastUnitPrice = last.UnitPrice,
                         LastPurchaseDate = last.InvoiceDate
@@ -236,9 +239,9 @@ namespace WarehouseUserManagement.Controllers
         {
             var rows = await BuildIssueByDepartmentRowsAsync(filter);
             var sb = new StringBuilder();
-            sb.AppendLine("القسم,الصنف,الكمية,التاريخ,المستلم");
+            sb.AppendLine("القسم,الصنف,الباركود,الكمية,التاريخ,المستلم");
             foreach (var r in rows)
-                sb.AppendLine($"{Csv(r.DepartmentName)},{Csv(r.ProductName)},{r.Quantity},{r.IssueDate:yyyy-MM-dd},{Csv(r.ReceiverName)}");
+                sb.AppendLine($"{Csv(r.DepartmentName)},{Csv(r.ProductName)},{Csv(r.Barcode)},{r.Quantity},{r.IssueDate:yyyy-MM-dd},{Csv(r.ReceiverName)}");
 
             return CsvFile(sb, "issue-by-department");
         }
@@ -262,6 +265,7 @@ namespace WarehouseUserManagement.Controllers
                 {
                     DepartmentName = d.Issue!.Department!.DepartmentName,
                     ProductName = d.Product!.ProductName,
+                    Barcode = d.Product.Barcode,
                     Quantity = d.Quantity,
                     IssueDate = d.Issue.IssueDate,
                     ReceiverName = d.Issue.ReceiverName
@@ -306,15 +310,20 @@ namespace WarehouseUserManagement.Controllers
         [HasPermission("View Inventory Report")]
         public async Task<IActionResult> ItemCard(ItemCardFilter filter)
         {
+            var productsQuery = _context.Products.AsNoTracking().Include(p => p.Category).AsQueryable();
+            if (filter.CategoryId.HasValue)
+                productsQuery = productsQuery.Where(p => p.CategoryId == filter.CategoryId.Value);
+
             var vm = new ItemCardViewModel
             {
                 Filter = filter,
-                Products = await _context.Products.AsNoTracking().OrderBy(p => p.ProductName).ToListAsync()
+                Categories = await _context.Categories.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.CategoryName).ToListAsync(),
+                Products = await productsQuery.OrderBy(p => p.ProductName).ToListAsync()
             };
 
             if (filter.ProductId.HasValue)
             {
-                vm.SelectedProduct = await _context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.ProductId == filter.ProductId.Value);
+                vm.SelectedProduct = await _context.Products.AsNoTracking().Include(p => p.Category).FirstOrDefaultAsync(p => p.ProductId == filter.ProductId.Value);
 
                 var query = _context.StockTransactions.AsNoTracking()
                     .Where(t => t.ProductId == filter.ProductId.Value)
@@ -363,7 +372,7 @@ namespace WarehouseUserManagement.Controllers
         {
             var query = _context.StockTakeDetails.AsNoTracking()
                 .Include(d => d.StockTake)
-                .Include(d => d.Product)
+                .Include(d => d.Product).ThenInclude(p => p!.Category)
                 .Where(d => d.StockTake!.Status == StockTakeStatus.Posted)
                 .AsQueryable();
 
@@ -371,6 +380,12 @@ namespace WarehouseUserManagement.Controllers
             if (filter.FromDate.HasValue) query = query.Where(d => d.StockTake!.StockTakeDate >= filter.FromDate.Value);
             if (filter.ToDate.HasValue) query = query.Where(d => d.StockTake!.StockTakeDate <= filter.ToDate.Value);
             if (filter.OnlyDifferences) query = query.Where(d => d.Difference != 0);
+            if (filter.CategoryId.HasValue) query = query.Where(d => d.Product!.CategoryId == filter.CategoryId.Value);
+            if (!string.IsNullOrWhiteSpace(filter.Barcode))
+            {
+                var term = filter.Barcode.Trim();
+                query = query.Where(d => d.Product!.Barcode != null && d.Product.Barcode.Contains(term));
+            }
 
             var rows = await query
                 .OrderByDescending(d => d.StockTake!.StockTakeDate)
@@ -378,6 +393,8 @@ namespace WarehouseUserManagement.Controllers
                 {
                     StockTakeDate = d.StockTake!.StockTakeDate,
                     ProductName = d.Product!.ProductName,
+                    Barcode = d.Product.Barcode,
+                    CategoryName = d.Product.Category!.CategoryName,
                     SystemQuantity = d.SystemQuantity,
                     ActualQuantity = d.ActualQuantity,
                     Difference = d.Difference
@@ -391,6 +408,10 @@ namespace WarehouseUserManagement.Controllers
                 StockTakes = await _context.StockTakes.AsNoTracking()
                     .Where(s => s.Status == StockTakeStatus.Posted)
                     .OrderByDescending(s => s.StockTakeDate)
+                    .ToListAsync(),
+                Categories = await _context.Categories.AsNoTracking()
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.CategoryName)
                     .ToListAsync()
             };
             return View(vm);
@@ -419,6 +440,89 @@ namespace WarehouseUserManagement.Controllers
                 .ToListAsync();
 
             return View(new UserActivityViewModel { Filter = filter, Rows = rows });
+        }
+
+        // =====================================================================
+        // 10) تقرير ترتيب الأصناف (الأكثر شراءً / الأكثر صرفاً) - عدد الصرف يظهر دائماً لكل صنف
+        // =====================================================================
+        [HasPermission("View Inventory Report")]
+        public async Task<IActionResult> ProductRanking(ProductRankingFilter filter)
+        {
+            var rows = await BuildProductRankingRowsAsync(filter);
+
+            var vm = new ProductRankingViewModel
+            {
+                Filter = filter,
+                Rows = rows,
+                Categories = await _context.Categories.AsNoTracking().Where(c => c.IsActive).OrderBy(c => c.CategoryName).ToListAsync()
+            };
+            return View(vm);
+        }
+
+        [HasPermission("View Inventory Report")]
+        public async Task<IActionResult> ProductRankingCsv(ProductRankingFilter filter)
+        {
+            var rows = await BuildProductRankingRowsAsync(filter);
+            var sb = new StringBuilder();
+            sb.AppendLine("الصنف,الباركود,التصنيف,الوحدة,الكمية الحالية,إجمالي الكمية المشتراة,إجمالي كمية الصرف");
+            foreach (var r in rows)
+                sb.AppendLine($"{Csv(r.ProductName)},{Csv(r.Barcode)},{Csv(r.CategoryName)},{Csv(r.Unit)},{r.CurrentQuantity},{r.TotalPurchasedQuantity},{r.TotalIssuedQuantity}");
+
+            return CsvFile(sb, "product-ranking-report");
+        }
+
+        private async Task<List<ProductRankingRow>> BuildProductRankingRowsAsync(ProductRankingFilter filter)
+        {
+            // إجمالي المشتريات المعتمدة لكل صنف
+            var purchasedByProduct = await _context.PurchaseInvoiceDetails.AsNoTracking()
+                .Include(d => d.PurchaseInvoice)
+                .Where(d => d.PurchaseInvoice!.Status == PurchaseInvoiceStatus.Posted)
+                .GroupBy(d => d.ProductId)
+                .Select(g => new { ProductId = g.Key, Total = g.Sum(d => d.Quantity) })
+                .ToDictionaryAsync(g => g.ProductId, g => g.Total);
+
+            // إجمالي الصرف المعتمد لكل صنف (يظهر دائماً حتى لو صفر بفضل الدمج مع كل الأصناف بالأسفل)
+            var issuedByProduct = await _context.IssueDetails.AsNoTracking()
+                .Include(d => d.Issue)
+                .Where(d => d.Issue!.Status == IssueStatus.Posted)
+                .GroupBy(d => d.ProductId)
+                .Select(g => new { ProductId = g.Key, Total = g.Sum(d => d.Quantity) })
+                .ToDictionaryAsync(g => g.ProductId, g => g.Total);
+
+            var productsQuery = _context.Products.AsNoTracking().Include(p => p.Category).AsQueryable();
+
+            if (filter.CategoryId.HasValue)
+                productsQuery = productsQuery.Where(p => p.CategoryId == filter.CategoryId.Value);
+
+            if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+            {
+                var term = filter.SearchTerm.Trim();
+                productsQuery = productsQuery.Where(p => p.ProductName.Contains(term) || (p.Barcode != null && p.Barcode.Contains(term)));
+            }
+
+            var products = await productsQuery
+                .Select(p => new { p.ProductId, p.ProductName, p.Barcode, CategoryName = p.Category!.CategoryName, p.Unit, p.CurrentQuantity })
+                .ToListAsync();
+
+            var rows = products.Select(p => new ProductRankingRow
+            {
+                ProductName = p.ProductName,
+                Barcode = p.Barcode,
+                CategoryName = p.CategoryName,
+                Unit = p.Unit,
+                CurrentQuantity = p.CurrentQuantity,
+                TotalPurchasedQuantity = purchasedByProduct.TryGetValue(p.ProductId, out var purchased) ? purchased : 0,
+                TotalIssuedQuantity = issuedByProduct.TryGetValue(p.ProductId, out var issued) ? issued : 0
+            }).ToList();
+
+            rows = (filter.SortBy?.ToLowerInvariant()) switch
+            {
+                "issued" => rows.OrderByDescending(r => r.TotalIssuedQuantity).ToList(),
+                "name" => rows.OrderBy(r => r.ProductName).ToList(),
+                _ => rows.OrderByDescending(r => r.TotalPurchasedQuantity).ToList()
+            };
+
+            return rows;
         }
 
         // ===== Helpers =====

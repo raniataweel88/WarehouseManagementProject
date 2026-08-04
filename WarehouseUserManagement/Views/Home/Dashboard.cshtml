@@ -53,24 +53,76 @@
     </div>
 </div>
 
+@{
+    string TopPeriodLabel(string p) => p switch
+    {
+        "month" => "هذا الشهر",
+        "3m" => "آخر 3 أشهر",
+        "6m" => "آخر 6 أشهر",
+        "12m" => "آخر 12 شهر",
+        "custom" => (Model.TopProductsFromDate.HasValue || Model.TopProductsToDate.HasValue)
+            ? $"{Model.TopProductsFromDate?.ToString("yyyy-MM-dd")} إلى {Model.TopProductsToDate?.ToString("yyyy-MM-dd")}"
+            : "فترة مخصصة",
+        _ => "كل الفترة"
+    };
+}
+
+<!-- شارتات لا تحتاج فلترة بالفترة (لها فترتها الثابتة الخاصة: آخر 6 أشهر) -->
 <div class="dashboard-charts-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:20px; margin-top:20px;">
     <div class="card">
         <div class="chart-card-header"><span class="icon">📈</span><h3>المشتريات حسب الشهر</h3></div>
         <canvas id="purchaseByMonthChart" height="220"></canvas>
     </div>
     <div class="card">
-        <div class="chart-card-header"><span class="icon">🏆</span><h3>أكثر الأصناف شراءً</h3></div>
-        <canvas id="topPurchasedChart" height="220"></canvas>
-    </div>
-    <div class="card">
-        <div class="chart-card-header"><span class="icon">🏢</span><h3>أكثر الأقسام استهلاكاً</h3></div>
-        <canvas id="deptConsumptionChart" height="220"></canvas>
-    </div>
-    <div class="card">
         <div class="chart-card-header"><span class="icon">🔄</span><h3>حركة المخزون (وارد / صادر)</h3></div>
         <canvas id="stockMovementChart" height="220"></canvas>
     </div>
 </div>
+
+<!-- فلتر الفترة الزمنية - يتحكم بالشارتات الثلاث اللي تحته فقط -->
+<div class="card" style="margin-top:20px;">
+    <form method="get" asp-action="Dashboard" class="toolbar" id="topProductsFilterForm">
+        <div class="form-group">
+            <label>🏆📤🏢 فترة مقارنة "أكثر الأصناف شراءً / صرفاً" و"أكثر الأقسام استهلاكاً"</label>
+            <select name="topPeriod" id="topPeriodSelect" onchange="document.getElementById('customTopDateRange').style.display = this.value === 'custom' ? 'flex' : 'none';">
+                <option value="all" selected="@(Model.TopProductsPeriod == "all")">كل الفترة</option>
+                <option value="month" selected="@(Model.TopProductsPeriod == "month")">هذا الشهر</option>
+                <option value="3m" selected="@(Model.TopProductsPeriod == "3m")">آخر 3 أشهر</option>
+                <option value="6m" selected="@(Model.TopProductsPeriod == "6m")">آخر 6 أشهر</option>
+                <option value="12m" selected="@(Model.TopProductsPeriod == "12m")">آخر 12 شهر (سنوي)</option>
+                <option value="custom" selected="@(Model.TopProductsPeriod == "custom")">فترة مخصصة</option>
+            </select>
+        </div>
+        <div id="customTopDateRange" style="display:@(Model.TopProductsPeriod == "custom" ? "flex" : "none"); gap:12px;">
+            <div class="form-group">
+                <label>من تاريخ</label>
+                <input type="date" name="topFrom" value="@Model.TopProductsFromDate?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-group">
+                <label>إلى تاريخ</label>
+                <input type="date" name="topTo" value="@Model.TopProductsToDate?.ToString("yyyy-MM-dd")" />
+            </div>
+        </div>
+        <button type="submit" class="btn btn-Prim" style="align-self:flex-end;">تطبيق</button>
+    </form>
+</div>
+
+<!-- الشارتات اللي تتأثر بفلتر الفترة أعلاه -->
+<div class="dashboard-charts-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:20px; margin-top:20px;">
+    <div class="card">
+        <div class="chart-card-header"><span class="icon">🏆</span><h3>أكثر الأصناف شراءً <small class="muted">(@TopPeriodLabel(Model.TopProductsPeriod))</small></h3></div>
+        <canvas id="topPurchasedChart" height="220"></canvas>
+    </div>
+    <div class="card">
+        <div class="chart-card-header"><span class="icon">📤</span><h3>أكثر الأصناف صرفاً <small class="muted">(@TopPeriodLabel(Model.TopProductsPeriod))</small></h3></div>
+        <canvas id="topIssuedChart" height="220"></canvas>
+    </div>
+    <div class="card">
+        <div class="chart-card-header"><span class="icon">🏢</span><h3>أكثر الأقسام استهلاكاً <small class="muted">(@TopPeriodLabel(Model.TopProductsPeriod))</small></h3></div>
+        <canvas id="deptConsumptionChart" height="220"></canvas>
+    </div>
+</div>
+
 
 <div class="dashboard-bottom-grid"  >
     <div class="card">
@@ -80,7 +132,15 @@
         {
             <div class="alert alert-warning">
                 يوجد <strong>@Model.PendingPurchaseApprovals</strong> فاتورة شراء بانتظار الاعتماد.
-                <a asp-controller="PurchaseInvoices" asp-action="Index">عرض الفواتير</a>
+                <a asp-controller="PurchaseInvoices" asp-action="Index" asp-route-StatusFilter="@PurchaseInvoiceStatus.Draft">عرض الفواتير</a>
+            </div>
+        }
+
+        @if (Model.PendingIssueVouchers > 0)
+        {
+            <div class="alert alert-warning">
+                يوجد <strong>@Model.PendingIssueVouchers</strong> سند صرف لم يتم اعتماده/صرفه بعد.
+                <a asp-controller="Issues" asp-action="Index" asp-route-StatusFilter="@IssueStatus.Draft">عرض السندات</a>
             </div>
         }
 
@@ -160,6 +220,26 @@
                     label: 'الكمية المشتراة',
                     data: @Html.Raw(Json.Serialize(Model.TopPurchasedProductQuantities)),
                     backgroundColor: (c) => c.chart.chartArea ? gradient(c.chart.ctx, c.chart.chartArea, '#475569', '#1E293B') : '#334155',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, grid: { color: '#F1F5F9' } }, y: { grid: { display: false } } }
+            }
+        });
+
+        // ===== أكثر الأصناف صرفاً (تدرّج برتقالي غامق) =====
+        new Chart(document.getElementById('topIssuedChart'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(Json.Serialize(Model.TopIssuedProductNames)),
+                datasets: [{
+                    label: 'الكمية المصروفة',
+                    data: @Html.Raw(Json.Serialize(Model.TopIssuedProductQuantities)),
+                    backgroundColor: (c) => c.chart.chartArea ? gradient(c.chart.ctx, c.chart.chartArea, '#FDBA74', '#C2410C') : '#EA580C',
                     borderRadius: 6
                 }]
             },

@@ -54,6 +54,19 @@
             <label>الحالة</label>
             <p><span class="status-pill @StatusClass(Model.Status)">@StatusLabel(Model.Status)</span></p>
         </div>
+        <div class="form-group">
+            <label>مرفق الفاتورة الورقية</label>
+            <p>
+                @if (!string.IsNullOrWhiteSpace(Model.AttachmentPath))
+                {
+                    <a href="~/@Model.AttachmentPath" target="_blank">@(Model.AttachmentFileName ?? "عرض الملف")</a>
+                }
+                else
+                {
+                    @:-
+                }
+            </p>
+        </div>
     </div>
 </div>
 
@@ -85,7 +98,7 @@
     </div>
 
     <div class="form-grid" style="margin-top:20px; max-width:90%; margin-inline-start:auto;">
-       
+
         <div class="form-group">
             <label>الإجمالي الكلي</label>
             <p><strong>@Model.GrandTotal.ToString("N2")</strong></p>

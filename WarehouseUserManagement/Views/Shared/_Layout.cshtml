@@ -70,13 +70,19 @@
                     @if (Has("View Issues"))
                     {
                         <a asp-controller="Issues" asp-action="Index" class="@(IsCurrent("Issues") ? "active" : "")">
-                            <span class="nav-icon">📤</span> سندات الصرف
+                            <span class="nav-icon">📤</span>  الصادر
                         </a>
                     }
                     @if (Has("View StockTake"))
                     {
                         <a asp-controller="StockTake" asp-action="Index" class="@(IsCurrent("StockTake") ? "active" : "")">
                             <span class="nav-icon">📋</span> الجرد
+                        </a>
+                    }
+                    @if (Has("View Old Invoices Archive"))
+                    {
+                        <a asp-controller="OldInvoiceArchive" asp-action="Index" class="@(IsCurrent("OldInvoiceArchive") ? "active" : "")">
+                            <span class="nav-icon">🗄️</span> أرشيف فواتير قديمة
                         </a>
                     }
                     @if (Has("View Departments"))
@@ -105,13 +111,7 @@
                             <span class="nav-icon">🔑</span> الصلاحيات
                         </a>
                     }
-                    @if (Has("View Audit Log"))
-                    {
-                        <a asp-controller="AuditLogs" asp-action="Index" class="@(IsCurrent("AuditLogs") ? "active" : "")">
-                            <span class="nav-icon">📜</span> سجل العمليات
-                        </a>
-                    }
-
+                  
                     @if (Has("View Inventory Report") || Has("View Purchase Report") || Has("View Issue Report") || Has("View StockTake") || Has("View Audit Log"))
                     {
                         <div class="sidebar-section">التقارير</div>

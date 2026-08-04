@@ -36,8 +36,8 @@ namespace WarehouseUserManagement.Models.ViewModels
 
         /// <summary>قائمة التصنيفات النشطة لعرضها في القائمة المنسدلة.</summary>
         public List<CategoryOption> CategoryOptions { get; set; } = new();
-        public int AverageCost { get;   set; }
-        public int CurrentQuantity { get;   set; }
+        public int AverageCost { get; set; }
+        public int CurrentQuantity { get; set; }
     }
 
     public class CategoryOption
@@ -95,5 +95,6 @@ namespace WarehouseUserManagement.Models.ViewModels
         public string CategoryName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
         public decimal AverageCost { get; set; }
+        public string? Barcode { get; set; }
     }
 }

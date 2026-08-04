@@ -12,6 +12,11 @@
     .full-width {
         grid-column: 1 / -1;
     }
+
+    .scan-flash {
+        background-color: #d1f7dd !important;
+        transition: background-color 0.7s ease;
+    }
 </style>
 
 <div class="page-title">
@@ -47,6 +52,11 @@
         <div class="page-title" style="margin-bottom:12px;">
             <h2 style="font-size:18px;">أصناف الجرد</h2>
             <button type="button" id="addLineBtn" class="btn btn-sm btn-secondary">+ إضافة سطر</button>
+        </div>
+
+        <div class="form-group full-width" style="margin-bottom:16px;">
+            <label for="barcodeScanInput">مسح الباركود</label>
+            <input type="text" id="barcodeScanInput" class="form-control" placeholder="🔫 امسح الباركود بالسكانر أو اكتبه واضغط Enter" autocomplete="off" />
         </div>
 
         <div class="table-responsive">
@@ -113,6 +123,7 @@
             productId: Number(p.productId ?? p.ProductId),
             productName: p.productName ?? p.ProductName ?? '',
             categoryName: p.categoryName ?? p.CategoryName ?? '',
+            barcode: p.barcode ?? p.Barcode ?? '',
             unit: p.unit ?? p.Unit ?? '',
             currentQuantity: Number(p.currentQuantity ?? p.CurrentQuantity ?? 0)
         };
@@ -208,7 +219,7 @@
         const matches = products.filter(p => {
             if (excluded.includes(p.productId)) return false;
             if (!t) return true;
-            return p.productName.toLowerCase().includes(t) || p.categoryName.toLowerCase().includes(t);
+            return p.productName.toLowerCase().includes(t) || p.categoryName.toLowerCase().includes(t) || (p.barcode && p.barcode.toLowerCase().includes(t));
         });
 
         if (matches.length === 0) {
@@ -219,7 +230,7 @@
         productDropdownList.innerHTML = matches.map(p => `
             <button type="button" class="product-dropdown-item" data-id="${p.productId}">
                 <span class="pdi-name">${escapeHtml(p.productName)}</span>
-                <span class="pdi-meta">${escapeHtml(p.categoryName)} · ${escapeHtml(p.unit)} · بالنظام: ${p.currentQuantity}</span>
+                <span class="pdi-meta">${escapeHtml(p.categoryName)} · ${escapeHtml(p.unit)} · بالنظام: ${p.currentQuantity}${p.barcode ? " · " + escapeHtml(p.barcode) : ""}</span>
             </button>
         `).join('');
     }
@@ -340,6 +351,69 @@
     }
 
     document.getElementById('addLineBtn').addEventListener('click', () => addLine());
+
+    // ===== مسح الباركود (سكانر) وزيادة الكمية الفعلية المعدودة تلقائياً =====
+    const barcodeScanInput = document.getElementById('barcodeScanInput');
+
+    function flashRow(row) {
+        row.classList.add('scan-flash');
+        setTimeout(() => row.classList.remove('scan-flash'), 700);
+    }
+
+    function findRowByProductId(productId) {
+        return Array.from(linesBody.querySelectorAll('tr')).find(row =>
+            Number(row.querySelector('.line-product-id').value) === Number(productId));
+    }
+
+    function findEmptyRow() {
+        return Array.from(linesBody.querySelectorAll('tr')).find(row =>
+            !row.querySelector('.line-product-id').value);
+    }
+
+    function scanBarcode() {
+        const code = barcodeScanInput.value.trim();
+        barcodeScanInput.value = '';
+        if (!code) return;
+
+        const product = products.find(p => p.barcode && p.barcode.toLowerCase() === code.toLowerCase());
+        if (!product) {
+            Swal.fire({ icon: 'warning', title: 'صنف غير موجود', text: `لا يوجد صنف بالباركود: ${code}` });
+            barcodeScanInput.focus();
+            return;
+        }
+
+        const existingRow = findRowByProductId(product.productId);
+        if (existingRow) {
+            const actualInput = existingRow.querySelector('.line-actual');
+            actualInput.value = (parseFloat(actualInput.value) || 0) + 1;
+            actualInput.dispatchEvent(new Event('input'));
+            flashRow(existingRow);
+            barcodeScanInput.focus();
+            return;
+        }
+
+        const emptyRow = findEmptyRow();
+        if (emptyRow) {
+            const cell = emptyRow.querySelector('.product-picker');
+            selectProduct(cell, product.productId);
+            const actualInput = emptyRow.querySelector('.line-actual');
+            actualInput.value = 1;
+            actualInput.dispatchEvent(new Event('input'));
+            flashRow(emptyRow);
+        } else {
+            addLine(product.productId, 1);
+            flashRow(linesBody.lastElementChild);
+        }
+
+        barcodeScanInput.focus();
+    }
+
+    barcodeScanInput.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        e.stopPropagation();
+        scanBarcode();
+    });
 
     // تحميل السطور الموجودة مسبقاً، أو سطر فارغ واحد إن لم توجد سطور
     if (existingLines.length > 0) {

@@ -63,6 +63,11 @@ namespace WarehouseUserManagement.Data
                 new() { PermissionName = "Edit StockTake",   ModuleName = "StockTake" },
                 new() { PermissionName = "Post StockTake",   ModuleName = "StockTake" },
 
+                // أرشيف الفواتير القديمة
+                new() { PermissionName = "View Old Invoices Archive",   ModuleName = "OldInvoicesArchive" },
+                new() { PermissionName = "Upload Old Invoices Archive", ModuleName = "OldInvoicesArchive" },
+                new() { PermissionName = "Delete Old Invoices Archive", ModuleName = "OldInvoicesArchive" },
+
                 // التقارير
                 new() { PermissionName = "View Inventory Report", ModuleName = "Reports" },
                 new() { PermissionName = "View Purchase Report",  ModuleName = "Reports" },

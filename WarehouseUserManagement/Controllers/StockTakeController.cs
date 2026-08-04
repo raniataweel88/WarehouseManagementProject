@@ -23,16 +23,23 @@ namespace WarehouseUserManagement.Controllers
         [HasPermission("View StockTake")]
         public async Task<IActionResult> Index(StockTakeSearchRequest request)
         {
-            var query = _context.StockTakes.AsNoTracking().Include(s => s.Details).AsQueryable();
+            var query = _context.StockTakes.AsNoTracking()
+                .Include(s => s.Details).ThenInclude(d => d.Product).ThenInclude(p => p!.Category)
+                .AsQueryable();
 
+            // البحث الآن يتم على باركود الصنف داخل سطور السند (وليس على ملاحظات السند)
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
                 var term = request.SearchTerm.Trim();
-                query = query.Where(s => s.Notes != null && s.Notes.StartsWith(term));
+                query = query.Where(s => s.Details.Any(d => d.Product != null && d.Product.Barcode != null && d.Product.Barcode.StartsWith(term)));
             }
 
             if (request.StatusFilter.HasValue)
                 query = query.Where(s => s.Status == request.StatusFilter.Value);
+
+            // فلترة حسب التصنيف: يظهر السند إذا كان يحتوي على صنف واحد على الأقل من هذا التصنيف
+            if (request.CategoryFilter.HasValue)
+                query = query.Where(s => s.Details.Any(d => d.Product != null && d.Product.CategoryId == request.CategoryFilter.Value));
 
             var totalCount = await query.CountAsync();
 
@@ -49,8 +56,18 @@ namespace WarehouseUserManagement.Controllers
                     StockTakeDate = s.StockTakeDate,
                     Notes = s.Notes,
                     Status = s.Status,
-                    LinesCount = s.Details.Count
+                    LinesCount = s.Details.Count,
+                    Categories = s.Details.Where(d => d.Product != null && d.Product.Category != null)
+                        .Select(d => d.Product!.Category!.CategoryName).Distinct().ToList(),
+                    Barcodes = s.Details.Where(d => d.Product != null && d.Product.Barcode != null)
+                        .Select(d => d.Product!.Barcode!).Distinct().ToList()
                 })
+                .ToListAsync();
+
+            var categories = await _context.Categories.AsNoTracking()
+                .Where(c => !c.IsDeleted)
+                .OrderBy(c => c.CategoryName)
+                .Select(c => new CategoryOption { CategoryId = c.CategoryId, CategoryName = c.CategoryName })
                 .ToListAsync();
 
             var vm = new StockTakeListViewModel
@@ -58,6 +75,8 @@ namespace WarehouseUserManagement.Controllers
                 StockTakes = stockTakes,
                 SearchTerm = request.SearchTerm,
                 StatusFilter = request.StatusFilter,
+                CategoryFilter = request.CategoryFilter,
+                Categories = categories,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
                 TotalCount = totalCount
@@ -358,7 +377,8 @@ namespace WarehouseUserManagement.Controllers
                     ProductName = p.ProductName,
                     CategoryName = p.Category!.CategoryName,
                     Unit = p.Unit,
-                    CurrentQuantity = p.CurrentQuantity
+                    CurrentQuantity = p.CurrentQuantity,
+                    Barcode = p.Barcode
                 })
                 .ToListAsync();
         }

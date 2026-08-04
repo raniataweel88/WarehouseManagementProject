@@ -15,6 +15,7 @@ namespace WarehouseUserManagement.Models.ViewModels
     public class InventoryReportRow
     {
         public string ProductName { get; set; } = string.Empty;
+        public string? Barcode { get; set; }
         public string CategoryName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
         public decimal CurrentQuantity { get; set; }
@@ -95,6 +96,7 @@ namespace WarehouseUserManagement.Models.ViewModels
     public class LastPurchasePriceRow
     {
         public string ProductName { get; set; } = string.Empty;
+        public string? Barcode { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public decimal LastUnitPrice { get; set; }
         public DateTime LastPurchaseDate { get; set; }
@@ -121,6 +123,7 @@ namespace WarehouseUserManagement.Models.ViewModels
     {
         public string DepartmentName { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
+        public string? Barcode { get; set; }
         public decimal Quantity { get; set; }
         public DateTime IssueDate { get; set; }
         public string ReceiverName { get; set; } = string.Empty;
@@ -164,6 +167,7 @@ namespace WarehouseUserManagement.Models.ViewModels
     public class ItemCardFilter
     {
         public int? ProductId { get; set; }
+        public int? CategoryId { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
     }
@@ -182,6 +186,7 @@ namespace WarehouseUserManagement.Models.ViewModels
     public class ItemCardViewModel
     {
         public ItemCardFilter Filter { get; set; } = new();
+        public List<Category> Categories { get; set; } = new();
         public List<Product> Products { get; set; } = new();
         public Product? SelectedProduct { get; set; }
         public List<ItemCardRow> Rows { get; set; } = new();
@@ -198,12 +203,16 @@ namespace WarehouseUserManagement.Models.ViewModels
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public bool OnlyDifferences { get; set; }
+        public string? Barcode { get; set; }
+        public int? CategoryId { get; set; }
     }
 
     public class StockTakeReportRow
     {
         public DateTime StockTakeDate { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        public string? Barcode { get; set; }
+        public string? CategoryName { get; set; }
         public decimal SystemQuantity { get; set; }
         public decimal ActualQuantity { get; set; }
         public decimal Difference { get; set; }
@@ -213,6 +222,7 @@ namespace WarehouseUserManagement.Models.ViewModels
     {
         public StockTakeReportFilter Filter { get; set; } = new();
         public List<StockTake> StockTakes { get; set; } = new();
+        public List<Category> Categories { get; set; } = new();
         public List<StockTakeReportRow> Rows { get; set; } = new();
         public decimal TotalShortage => Rows.Where(r => r.Difference < 0).Sum(r => r.Difference);
         public decimal TotalSurplus => Rows.Where(r => r.Difference > 0).Sum(r => r.Difference);
@@ -242,6 +252,42 @@ namespace WarehouseUserManagement.Models.ViewModels
     }
 
     // =====================================================================
+    // 10) تقرير ترتيب الأصناف (الأكثر شراءً / الأكثر صرفاً) - عدد الصرف يظهر دائماً لكل صنف
+    // =====================================================================
+    public class ProductRankingFilter
+    {
+        public int? CategoryId { get; set; }
+        public string? SearchTerm { get; set; }
+
+        // purchased (افتراضي) | issued | name
+        public string? SortBy { get; set; }
+    }
+
+    public class ProductRankingRow
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public string? Barcode { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
+        public decimal CurrentQuantity { get; set; }
+
+        // إجمالي الكمية المشتراة (فواتير معتمدة فقط)
+        public decimal TotalPurchasedQuantity { get; set; }
+
+        // إجمالي عدد/كمية الصرف (سندات معتمدة فقط) - يظهر دائماً حتى لو صفر
+        public decimal TotalIssuedQuantity { get; set; }
+    }
+
+    public class ProductRankingViewModel
+    {
+        public ProductRankingFilter Filter { get; set; } = new();
+        public List<ProductRankingRow> Rows { get; set; } = new();
+        public List<Category> Categories { get; set; } = new();
+        public decimal GrandTotalPurchased => Rows.Sum(r => r.TotalPurchasedQuantity);
+        public decimal GrandTotalIssued => Rows.Sum(r => r.TotalIssuedQuantity);
+    }
+
+    // =====================================================================
     // Dashboard
     // =====================================================================
     public class DashboardViewModel
@@ -253,6 +299,7 @@ namespace WarehouseUserManagement.Models.ViewModels
         public int PurchaseInvoicesThisMonth { get; set; }
         public int IssuesThisMonth { get; set; }
         public int PendingPurchaseApprovals { get; set; }
+        public int PendingIssueVouchers { get; set; }
 
         // Trend مقارنة بالشهر الماضي (نسبة مئوية، موجبة = ارتفاع)
         public double? PurchaseInvoicesTrend { get; set; }
@@ -267,6 +314,14 @@ namespace WarehouseUserManagement.Models.ViewModels
 
         public List<string> TopPurchasedProductNames { get; set; } = new();
         public List<decimal> TopPurchasedProductQuantities { get; set; } = new();
+
+        public List<string> TopIssuedProductNames { get; set; } = new();
+        public List<decimal> TopIssuedProductQuantities { get; set; } = new();
+
+        // فلتر الفترة الزمنية لشارتي "أكثر الأصناف شراءً / صرفاً" فقط
+        public string TopProductsPeriod { get; set; } = "all";
+        public DateTime? TopProductsFromDate { get; set; }
+        public DateTime? TopProductsToDate { get; set; }
 
         public List<string> DepartmentConsumptionLabels { get; set; } = new();
         public List<decimal> DepartmentConsumptionValues { get; set; } = new();

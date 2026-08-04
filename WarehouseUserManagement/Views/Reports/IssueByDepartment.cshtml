@@ -62,6 +62,7 @@
                 <tr>
                     <th>القسم</th>
                     <th>الصنف</th>
+                    <th>الباركود</th>
                     <th>الكمية</th>
                     <th>التاريخ</th>
                     <th>المستلم</th>
@@ -73,6 +74,7 @@
                     <tr>
                         <td>@r.DepartmentName</td>
                         <td>@r.ProductName</td>
+                        <td>@(r.Barcode ?? "-")</td>
                         <td>@r.Quantity</td>
                         <td class="muted">@r.IssueDate.ToString("yyyy-MM-dd")</td>
                         <td>@r.ReceiverName</td>
@@ -80,7 +82,7 @@
                 }
                 @if (!Model.Rows.Any())
                 {
-                    <tr><td colspan="5" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                    <tr><td colspan="6" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
                 }
             </tbody>
         </table>

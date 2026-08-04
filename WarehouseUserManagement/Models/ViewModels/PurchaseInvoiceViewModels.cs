@@ -39,6 +39,14 @@ namespace WarehouseUserManagement.Models.ViewModels
 
         public byte[]? RowVersion { get; set; }
 
+        // ملف اختياري (صورة/PDF) للفاتورة الورقية الأصلية - يُرفع كمرفق فقط بدون أي معالجة تلقائية
+        [Display(Name = "إرفاق صورة/PDF الفاتورة")]
+        public IFormFile? AttachmentFile { get; set; }
+
+        // تُستخدم بصفحة التعديل لعرض/الاحتفاظ بالمرفق الحالي إذا لم يرفع المستخدم ملفاً جديداً
+        public string? ExistingAttachmentPath { get; set; }
+        public string? ExistingAttachmentFileName { get; set; }
+
         public List<PurchaseInvoiceLineViewModel> Lines { get; set; } = new();
 
         public List<ProductOption> ProductOptions { get; set; } = new();
@@ -110,6 +118,8 @@ namespace WarehouseUserManagement.Models.ViewModels
         public DateTime? PostedDate { get; set; }
         public string? CancelledBy { get; set; }
         public DateTime? CancelledDate { get; set; }
+        public string? AttachmentPath { get; set; }
+        public string? AttachmentFileName { get; set; }
         public List<PurchaseInvoiceDetailRow> Lines { get; set; } = new();
     }
 

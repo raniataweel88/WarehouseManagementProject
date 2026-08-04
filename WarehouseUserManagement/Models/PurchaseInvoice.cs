@@ -66,6 +66,14 @@ namespace WarehouseUserManagement.Models
         [Display(Name = "الحالة")]
         public PurchaseInvoiceStatus Status { get; set; } = PurchaseInvoiceStatus.Draft;
 
+        // مسار الملف المرفوع (صورة/PDF) للفاتورة الورقية الأصلية داخل wwwroot/uploads/purchase-invoices
+        [MaxLength(300)]
+        public string? AttachmentPath { get; set; }
+
+        // الاسم الأصلي للملف كما رفعه المستخدم (يُعرض بدل الاسم العشوائي المخزّن على القرص)
+        [MaxLength(260)]
+        public string? AttachmentFileName { get; set; }
+
         public string? CreatedBy { get; set; }
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public string? PostedBy { get; set; }

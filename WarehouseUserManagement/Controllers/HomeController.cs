@@ -26,7 +26,8 @@ namespace WarehouseUserManagement.Controllers
         }
 
         // لوحة تحكم Module 10: بطاقات + Charts + تنبيهات، حسب تحليل موديول الـ Reports/Dashboard.
-        public async Task<IActionResult> Dashboard()
+        // topPeriod: all | month | 3m | 6m | 12m | custom - يتحكم بفترة شارتي "أكثر الأصناف شراءً / صرفاً" فقط
+        public async Task<IActionResult> Dashboard(string? topPeriod, DateTime? topFrom, DateTime? topTo)
         {
             var now = DateTime.UtcNow;
             var monthStart = new DateTime(now.Year, now.Month, 1);
@@ -36,7 +37,8 @@ namespace WarehouseUserManagement.Controllers
                 TotalProducts = await _context.Products.CountAsync(p => p.IsActive),
                 PurchaseInvoicesThisMonth = await _context.PurchaseInvoices.CountAsync(i => i.InvoiceDate >= monthStart),
                 IssuesThisMonth = await _context.Issues.CountAsync(i => i.IssueDate >= monthStart),
-                PendingPurchaseApprovals = await _context.PurchaseInvoices.CountAsync(i => i.Status == PurchaseInvoiceStatus.Draft)
+                PendingPurchaseApprovals = await _context.PurchaseInvoices.CountAsync(i => i.Status == PurchaseInvoiceStatus.Draft),
+                PendingIssueVouchers = await _context.Issues.CountAsync(i => i.Status == IssueStatus.Draft)
             };
 
             // ===== مقارنة بالشهر الماضي (Trend) =====
@@ -101,11 +103,32 @@ namespace WarehouseUserManagement.Controllers
                 vm.PurchaseMonthValues.Add(match?.Total ?? 0);
             }
 
+            // ===== فترة شارتي "أكثر الأصناف شراءً / صرفاً" =====
+            var period = string.IsNullOrWhiteSpace(topPeriod) ? "all" : topPeriod.Trim().ToLowerInvariant();
+            DateTime? topRangeFrom = period switch
+            {
+                "month" => monthStart,
+                "3m" => monthStart.AddMonths(-2),
+                "6m" => monthStart.AddMonths(-5),
+                "12m" => monthStart.AddMonths(-11),
+                "custom" => topFrom,
+                _ => null
+            };
+            DateTime? topRangeTo = period == "custom" ? topTo : null;
+
+            vm.TopProductsPeriod = period;
+            vm.TopProductsFromDate = topFrom;
+            vm.TopProductsToDate = topTo;
+
             // ===== أكثر الأصناف شراءً (أعلى 5 بالكمية) =====
-            var topPurchased = await _context.PurchaseInvoiceDetails.AsNoTracking()
+            var topPurchasedQuery = _context.PurchaseInvoiceDetails.AsNoTracking()
                 .Include(d => d.PurchaseInvoice)
                 .Include(d => d.Product)
-                .Where(d => d.PurchaseInvoice!.Status == PurchaseInvoiceStatus.Posted)
+                .Where(d => d.PurchaseInvoice!.Status == PurchaseInvoiceStatus.Posted);
+            if (topRangeFrom.HasValue) topPurchasedQuery = topPurchasedQuery.Where(d => d.PurchaseInvoice!.InvoiceDate >= topRangeFrom.Value);
+            if (topRangeTo.HasValue) topPurchasedQuery = topPurchasedQuery.Where(d => d.PurchaseInvoice!.InvoiceDate <= topRangeTo.Value);
+
+            var topPurchased = await topPurchasedQuery
                 .GroupBy(d => d.Product!.ProductName)
                 .Select(g => new { ProductName = g.Key, TotalQuantity = g.Sum(d => d.Quantity) })
                 .OrderByDescending(g => g.TotalQuantity)
@@ -115,10 +138,32 @@ namespace WarehouseUserManagement.Controllers
             vm.TopPurchasedProductNames = topPurchased.Select(p => p.ProductName).ToList();
             vm.TopPurchasedProductQuantities = topPurchased.Select(p => p.TotalQuantity).ToList();
 
+            // ===== أكثر الأصناف صرفاً (أعلى 5 بالكمية) =====
+            var topIssuedQuery = _context.IssueDetails.AsNoTracking()
+                .Include(d => d.Issue)
+                .Include(d => d.Product)
+                .Where(d => d.Issue!.Status == IssueStatus.Posted);
+            if (topRangeFrom.HasValue) topIssuedQuery = topIssuedQuery.Where(d => d.Issue!.IssueDate >= topRangeFrom.Value);
+            if (topRangeTo.HasValue) topIssuedQuery = topIssuedQuery.Where(d => d.Issue!.IssueDate <= topRangeTo.Value);
+
+            var topIssued = await topIssuedQuery
+                .GroupBy(d => d.Product!.ProductName)
+                .Select(g => new { ProductName = g.Key, TotalQuantity = g.Sum(d => d.Quantity) })
+                .OrderByDescending(g => g.TotalQuantity)
+                .Take(5)
+                .ToListAsync();
+
+            vm.TopIssuedProductNames = topIssued.Select(p => p.ProductName).ToList();
+            vm.TopIssuedProductQuantities = topIssued.Select(p => p.TotalQuantity).ToList();
+
             // ===== أكثر الأقسام استهلاكاً =====
-            var deptConsumption = await _context.IssueDetails.AsNoTracking()
+            var deptConsumptionQuery = _context.IssueDetails.AsNoTracking()
                 .Include(d => d.Issue).ThenInclude(i => i!.Department)
-                .Where(d => d.Issue!.Status == IssueStatus.Posted)
+                .Where(d => d.Issue!.Status == IssueStatus.Posted);
+            if (topRangeFrom.HasValue) deptConsumptionQuery = deptConsumptionQuery.Where(d => d.Issue!.IssueDate >= topRangeFrom.Value);
+            if (topRangeTo.HasValue) deptConsumptionQuery = deptConsumptionQuery.Where(d => d.Issue!.IssueDate <= topRangeTo.Value);
+
+            var deptConsumption = await deptConsumptionQuery
                 .GroupBy(d => d.Issue!.Department!.DepartmentName)
                 .Select(g => new { DepartmentName = g.Key, TotalQuantity = g.Sum(d => d.Quantity) })
                 .OrderByDescending(g => g.TotalQuantity)

@@ -1,0 +1,222 @@
+@model IssueDetailsViewModel
+@{
+    ViewData["Title"] = "طباعة سند صرف";
+    Layout = "_Layout";
+
+    string StatusLabel(IssueStatus s) => s switch
+    {
+        IssueStatus.Draft => "مسودة",
+        IssueStatus.Posted => "معتمد",
+        IssueStatus.Cancelled => "ملغى",
+        _ => s.ToString()
+    };
+}
+
+<style>
+    .print-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .invoice-sheet {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 32px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .invoice-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 3px solid #4F46E5;
+        padding-bottom: 16px;
+        margin-bottom: 20px;
+    }
+
+    .invoice-header img {
+        max-height: 90px;
+    }
+
+    .invoice-header .company-name-ar {
+        font-size: 20px;
+        font-weight: 800;
+        color: #333;
+    }
+
+    .invoice-header .company-name-en {
+        font-size: 13px;
+        letter-spacing: 1px;
+        color: #8a7a6a;
+    }
+
+    .invoice-title {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .invoice-title h2 {
+        margin: 0;
+        font-size: 22px;
+    }
+
+    .invoice-meta {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px 20px;
+        margin-bottom: 20px;
+    }
+
+    .invoice-meta .meta-item label {
+        display: block;
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 2px;
+    }
+
+    .invoice-meta .meta-item span {
+        font-weight: 600;
+    }
+
+    .invoice-sheet table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 24px;
+    }
+
+    .invoice-sheet th, .invoice-sheet td {
+        border: 1px solid #e5e7eb;
+        padding: 8px 12px;
+        text-align: right;
+    }
+
+    .invoice-sheet th {
+        background: #f7f7fb;
+    }
+
+    .invoice-signatures {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 50px;
+    }
+
+    .invoice-signatures div {
+        text-align: center;
+        width: 30%;
+        border-top: 1px solid #999;
+        padding-top: 6px;
+        font-size: 13px;
+        color: #555;
+    }
+
+    @@media print {
+        .sidebar, .app-topbar, .nav-toggle, .sidebar-overlay, .print-toolbar {
+            display: none !important;
+        }
+
+        .app-shell, main.container {
+            display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .invoice-sheet {
+            border: none;
+            padding: 0;
+            max-width: none;
+        }
+
+        body {
+            background: #fff !important;
+        }
+    }
+</style>
+
+<div class="print-toolbar">
+    <a asp-action="Details" asp-route-id="@Model.IssueId" class="btn btn-secondary">رجوع للتفاصيل</a>
+    <button type="button" class="btn btn-Prim" onclick="window.print()">🖨️ طباعة</button>
+</div>
+
+<div class="invoice-sheet">
+    <div class="invoice-header">
+        <div>
+            <div class="company-name-ar">الأولى للتمويل</div>
+            <div class="company-name-en">FIRST FINANCE</div>
+        </div>
+        <img src="~/images/company-logo.png" alt="شعار الشركة" />
+    </div>
+
+    <div class="invoice-title">
+        <h2>سند صرف رقم @Model.IssueNumber</h2>
+        <span class="status-pill @(Model.Status == IssueStatus.Posted ? "status-active" : Model.Status == IssueStatus.Cancelled ? "status-inactive" : "status-warning")">
+            @StatusLabel(Model.Status)
+        </span>
+    </div>
+
+    <div class="invoice-meta">
+        <div class="meta-item">
+            <label>التاريخ</label>
+            <span>@Model.IssueDate.ToString("yyyy-MM-dd")</span>
+        </div>
+        <div class="meta-item">
+            <label>القسم المستلم</label>
+            <span>@Model.DepartmentName</span>
+        </div>
+        <div class="meta-item">
+            <label>اسم المستلم</label>
+            <span>@Model.ReceiverName</span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.Notes))
+        {
+            <div class="meta-item" style="grid-column: 1 / -1;">
+                <label>ملاحظات</label>
+                <span>@Model.Notes</span>
+            </div>
+        }
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>الصنف</th>
+                <th>الوحدة</th>
+                <th>الكمية</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ int rowNum = 1; }
+            @foreach (var l in Model.Lines)
+            {
+                <tr>
+                    <td>@rowNum</td>
+                    <td>@l.ProductName</td>
+                    <td>@l.Unit</td>
+                    <td>@l.Quantity</td>
+                </tr>
+                rowNum++;
+            }
+        </tbody>
+    </table>
+
+    <div class="invoice-signatures">
+        <div>توقيع المستلم</div>
+        <div>توقيع أمين المستودع</div>
+        <div>توقيع المسؤول المعتمد</div>
+    </div>
+
+    <p class="muted" style="margin-top:30px; font-size:12px;">
+        @if (Model.PostedDate != null)
+        {
+            <text>اعتُمد بواسطة @(Model.PostedBy ?? "-") بتاريخ @Model.PostedDate.Value.ToString("yyyy-MM-dd HH:mm")</text>
+        }
+        else
+        {
+            <text>أنشئ بواسطة @(Model.CreatedBy ?? "-") بتاريخ @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")</text>
+        }
+    </p>
+</div>

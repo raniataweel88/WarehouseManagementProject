@@ -11,8 +11,8 @@
 <div class="card">
     <form method="get" class="toolbar">
         <div class="form-group">
-            <label>بحث (اسم الصنف)</label>
-            <input type="search" name="searchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
+            <label>بحث (اسم الصنف أو الباركود)</label>
+            <input type="search" name="searchTerm" value="@Model.SearchTerm" placeholder="اكتب اسم الصنف أو امسح/اكتب الباركود..." />
         </div>
         <button type="submit" class="btn btn-Prim">بحث</button>
         <a href="@Url.Action("LastPurchasePrice")" class="btn btn-secondary">تفريغ</a>
@@ -25,6 +25,7 @@
             <thead>
                 <tr>
                     <th>الصنف</th>
+                    <th>الباركود</th>
                     <th>المورد</th>
                     <th>آخر سعر شراء</th>
                     <th>تاريخ الشراء</th>
@@ -35,6 +36,7 @@
                 {
                     <tr>
                         <td>@r.ProductName</td>
+                        <td>@(r.Barcode ?? "-")</td>
                         <td>@r.SupplierName</td>
                         <td>@r.LastUnitPrice.ToString("N4")</td>
                         <td class="muted">@r.LastPurchaseDate.ToString("yyyy-MM-dd")</td>
@@ -42,7 +44,7 @@
                 }
                 @if (!Model.Rows.Any())
                 {
-                    <tr><td colspan="4" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج (تحتسب من الفواتير المعتمدة فقط)</td></tr>
+                    <tr><td colspan="5" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج (تحتسب من الفواتير المعتمدة فقط)</td></tr>
                 }
             </tbody>
         </table>

@@ -121,5 +121,6 @@ namespace WarehouseUserManagement.Models.ViewModels
         public string CategoryName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
         public decimal CurrentQuantity { get; set; }
+        public string? Barcode { get; set; }
     }
 }

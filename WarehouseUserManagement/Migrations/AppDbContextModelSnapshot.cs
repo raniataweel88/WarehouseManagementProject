@@ -374,6 +374,14 @@ namespace WarehouseUserManagement.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PurchaseInvoiceId"));
 
+                    b.Property<string>("AttachmentFileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<string>("AttachmentPath")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
                     b.Property<string>("CancelledBy")
                         .HasColumnType("nvarchar(max)");
 

@@ -22,6 +22,7 @@ namespace WarehouseUserManagement.Data
         public DbSet<StockTake> StockTakes { get; set; }
         public DbSet<StockTakeDetail> StockTakeDetails { get; set; }
         public DbSet<StockTransaction> StockTransactions { get; set; }
+        public DbSet<OldInvoiceArchive> OldInvoiceArchives { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -129,6 +130,12 @@ namespace WarehouseUserManagement.Data
                 e.HasIndex(i => i.InvoiceNumber).IsUnique();
                 e.HasIndex(i => i.Status);
                 e.HasIndex(i => i.InvoiceDate);
+            });
+
+            // ===== Old Invoice Archive (موديول أرشيف منفصل تماماً - لا علاقة له بـ PurchaseInvoices) =====
+            modelBuilder.Entity<OldInvoiceArchive>(e =>
+            {
+                e.HasIndex(f => f.UploadedDate);
             });
 
             modelBuilder.Entity<PurchaseInvoiceDetail>(e =>

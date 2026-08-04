@@ -1683,3 +1683,53 @@ textarea {
     .product-dropdown-addnew:hover {
         background: #FDE9E3;
     }
+
+/* أيقونة شرح صغيرة (؟) جنب العناوين مع Tooltip عند المرور عليها */
+.info-tip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-inline-start: 4px;
+    border-radius: 50%;
+    background: #E4E6EE;
+    color: #5A5F73;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: help;
+    position: relative;
+    vertical-align: middle;
+}
+
+    .info-tip:hover,
+    .info-tip:focus {
+        background: #F04E23;
+        color: #fff;
+    }
+
+    .info-tip .info-tip-bubble {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        right: 50%;
+        transform: translateX(50%);
+        width: 220px;
+        max-width: 60vw;
+        background: #2A2E3F;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.6;
+        padding: 8px 10px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 20;
+        text-align: right;
+        white-space: normal;
+    }
+
+    .info-tip:hover .info-tip-bubble,
+    .info-tip:focus .info-tip-bubble {
+        display: block;
+    }

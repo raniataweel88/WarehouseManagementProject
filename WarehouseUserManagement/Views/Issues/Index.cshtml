@@ -1,6 +1,6 @@
 @model IssueListViewModel
 @{
-    ViewData["Title"] = "سندات الصرف";
+    ViewData["Title"] = "الصادر";
     bool IsAdmin = User.HasClaim("perm", "*");
     HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
     if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
@@ -48,7 +48,7 @@
 <div class="card">
     <form method="get" class="toolbar">
         <div class="form-group">
-            <label>بحث (رقم السند أو المستلم)</label>
+            <label>بحث (رقم الصادر أو المستلم)</label>
             <input type="search" name="SearchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
         </div>
         <div class="form-group">
@@ -99,6 +99,11 @@
                         <td><span class="status-pill @StatusClass(i.Status)">@StatusLabel(i.Status)</span></td>
                         <td class="actions-cell">
                             <a asp-action="Details" asp-route-id="@i.IssueId" class="btn btn-sm btn-secondary">عرض</a>
+
+                            @if (i.Status == IssueStatus.Posted)
+                            {
+                                <a asp-action="Print" asp-route-id="@i.IssueId" class="btn btn-sm btn-secondary">🖨️ طباعة</a>
+                            }
 
                             @if (i.Status == IssueStatus.Draft && Has("Edit Issue"))
                             {

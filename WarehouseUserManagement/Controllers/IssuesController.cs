@@ -216,7 +216,25 @@ namespace WarehouseUserManagement.Controllers
                 .FirstOrDefaultAsync(i => i.IssueId == id);
             if (issue is null) return NotFound();
 
-            var vm = new IssueDetailsViewModel
+            return View(BuildDetailsViewModel(issue));
+        }
+
+        // GET: /Issues/Print/5  (نسخة قابلة للطباعة من سند الصرف تحمل اسم الشركة)
+        [HasPermission("View Issues")]
+        public async Task<IActionResult> Print(int id)
+        {
+            var issue = await _context.Issues.AsNoTracking()
+                .Include(i => i.Department)
+                .Include(i => i.Details).ThenInclude(d => d.Product)
+                .FirstOrDefaultAsync(i => i.IssueId == id);
+            if (issue is null) return NotFound();
+
+            return View(BuildDetailsViewModel(issue));
+        }
+
+        private static IssueDetailsViewModel BuildDetailsViewModel(Issue issue)
+        {
+            return new IssueDetailsViewModel
             {
                 IssueId = issue.IssueId,
                 IssueNumber = issue.IssueNumber,
@@ -238,8 +256,6 @@ namespace WarehouseUserManagement.Controllers
                     Quantity = d.Quantity
                 }).ToList()
             };
-
-            return View(vm);
         }
 
         // POST: /Issues/Approve/5  (Draft -> Posted: يخصم الكميات من المخزون وينشئ حركة مخزون)
@@ -305,7 +321,7 @@ namespace WarehouseUserManagement.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "تم اعتماد سند الصرف وتحديث المخزون";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Print), new { id = issue.IssueId });
         }
 
         // POST: /Issues/Cancel/5
@@ -439,7 +455,8 @@ namespace WarehouseUserManagement.Controllers
                     ProductName = p.ProductName,
                     CategoryName = p.Category!.CategoryName,
                     Unit = p.Unit,
-                    CurrentQuantity = p.CurrentQuantity
+                    CurrentQuantity = p.CurrentQuantity,
+                    Barcode = p.Barcode
                 })
                 .ToListAsync();
         }

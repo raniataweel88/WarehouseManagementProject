@@ -42,6 +42,8 @@ namespace WarehouseUserManagement.Models.ViewModels
         public List<StockTakeRow> StockTakes { get; set; } = new();
         public string? SearchTerm { get; set; }
         public StockTakeStatus? StatusFilter { get; set; }
+        public int? CategoryFilter { get; set; }
+        public List<CategoryOption> Categories { get; set; } = new();
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
         public int TotalCount { get; set; }
@@ -55,12 +57,15 @@ namespace WarehouseUserManagement.Models.ViewModels
         public string? Notes { get; set; }
         public StockTakeStatus Status { get; set; }
         public int LinesCount { get; set; }
+        public List<string> Categories { get; set; } = new();
+        public List<string> Barcodes { get; set; } = new();
     }
 
     public class StockTakeSearchRequest
     {
         public string? SearchTerm { get; set; }
         public StockTakeStatus? StatusFilter { get; set; }
+        public int? CategoryFilter { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }
@@ -96,5 +101,6 @@ namespace WarehouseUserManagement.Models.ViewModels
         public string CategoryName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
         public decimal CurrentQuantity { get; set; }
+        public string? Barcode { get; set; }
     }
 }

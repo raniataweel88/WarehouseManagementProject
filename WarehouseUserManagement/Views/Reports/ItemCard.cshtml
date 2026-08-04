@@ -11,14 +11,24 @@
 <div class="card">
     <form method="get" class="toolbar">
         <div class="form-group">
-            <label>الصنف</label>
-            <select name="ProductId" required>
-                <option value="">-- اختر الصنف --</option>
-                @foreach (var p in Model.Products)
+            <label>التصنيف</label>
+            <select name="CategoryId">
+                <option value="">الكل</option>
+                @foreach (var c in Model.Categories)
                 {
-                    <option value="@p.ProductId" selected="@(Model.Filter.ProductId == p.ProductId)">@p.ProductName</option>
+                    <option value="@c.CategoryId" selected="@(Model.Filter.CategoryId == c.CategoryId)">@c.CategoryName</option>
                 }
             </select>
+        </div>
+        <div class="form-group product-combo" style="position:relative;">
+            <label>الصنف (اكتب الاسم أو الباركود)</label>
+            <input type="text"
+                   id="productSearchInput"
+                   autocomplete="off"
+                   placeholder="اكتب اسم الصنف أو امسح/اكتب الباركود..."
+                   value="@(Model.SelectedProduct is not null ? $"{Model.SelectedProduct.ProductName} ({Model.SelectedProduct.Barcode ?? "بدون باركود"})" : "")" />
+            <input type="hidden" name="ProductId" id="productIdHidden" value="@Model.Filter.ProductId" />
+            <div id="productSearchResults" class="product-search-results"></div>
         </div>
         <div class="form-group">
             <label>من تاريخ</label>
@@ -29,19 +39,41 @@
             <input type="date" name="ToDate" value="@Model.Filter.ToDate?.ToString("yyyy-MM-dd")" />
         </div>
         <button type="submit" class="btn btn-Prim">عرض</button>
+        <a href="@Url.Action("ItemCard")" class="btn btn-secondary">تفريغ</a>
     </form>
 </div>
 
 @if (Model.SelectedProduct is not null)
 {
+    <div class="card" style="margin-top:16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+        <div>
+            <div style="font-weight:700; font-size:1.1em;">@Model.SelectedProduct.ProductName</div>
+            <div class="muted">@Model.SelectedProduct.Category?.CategoryName</div>
+        </div>
+        <div>
+            <span class="muted">الباركود: </span>
+            <strong>@(Model.SelectedProduct.Barcode ?? "-")</strong>
+        </div>
+    </div>
+
     <div class="stats-grid" style="margin-top:16px;">
         <div class="stat-card">
             <div class="num">@Model.OpeningBalance</div>
-            <div class="label">الرصيد الافتتاحي</div>
+            <div class="label">
+                الرصيد الافتتاحي
+                <span class="info-tip" tabindex="0">؟
+                    <span class="info-tip-bubble">كمية الصنف الموجودة بالمخزون قبل تاريخ "من" المحدد بالفلتر. إذا لم تحدد تاريخ "من"، يكون صفراً دائماً.</span>
+                </span>
+            </div>
         </div>
         <div class="stat-card">
             <div class="num">@Model.ClosingBalance</div>
-            <div class="label">الرصيد الختامي</div>
+            <div class="label">
+                الرصيد الختامي
+                <span class="info-tip" tabindex="0">؟
+                    <span class="info-tip-bubble">الرصيد المتبقي بعد آخر حركة ضمن الفترة المحددة = الرصيد الافتتاحي + كل الوارد − كل الصادر خلال الفترة.</span>
+                </span>
+            </div>
         </div>
         <div class="stat-card">
             <div class="num">@Model.SelectedProduct.CurrentQuantity</div>
@@ -91,4 +123,137 @@
 else
 {
     <p class="muted" style="margin-top:16px;">الرجاء اختيار صنف لعرض كشف حركته.</p>
+}
+
+@section Scripts {
+    <style>
+        .product-search-results {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            z-index: 50;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            max-height: 260px;
+            overflow-y: auto;
+            box-shadow: 0 8px 20px rgba(0,0,0,.12);
+            margin-top: 4px;
+        }
+
+        .product-search-results.show {
+            display: block;
+        }
+
+        .product-search-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: .9em;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .product-search-item:last-child {
+            border-bottom: none;
+        }
+
+        .product-search-item:hover,
+        .product-search-item.active {
+            background: #F04E23;
+            color: #fff;
+        }
+
+        .product-search-item .barcode {
+            font-size: .85em;
+            opacity: .75;
+        }
+
+        .product-search-empty {
+            padding: 10px 12px;
+            color: #888;
+            font-size: .9em;
+        }
+    </style>
+
+    <script>
+        (function () {
+            var products = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.Products.Select(p => new {
+                    id = p.ProductId,
+                    name = p.ProductName,
+                    barcode = p.Barcode ?? ""
+                })
+            ));
+
+            var input = document.getElementById('productSearchInput');
+            var hidden = document.getElementById('productIdHidden');
+            var results = document.getElementById('productSearchResults');
+
+            function renderResults(list) {
+                results.innerHTML = '';
+                if (list.length === 0) {
+                    var empty = document.createElement('div');
+                    empty.className = 'product-search-empty';
+                    empty.textContent = 'لا يوجد صنف مطابق';
+                    results.appendChild(empty);
+                } else {
+                    list.slice(0, 30).forEach(function (p) {
+                        var item = document.createElement('div');
+                        item.className = 'product-search-item';
+                        item.innerHTML = '<div>' + p.name + '</div>' +
+                            (p.barcode ? '<div class="barcode">' + p.barcode + '</div>' : '');
+                        item.addEventListener('click', function () {
+                            input.value = p.name + (p.barcode ? ' (' + p.barcode + ')' : ' (بدون باركود)');
+                            hidden.value = p.id;
+                            results.classList.remove('show');
+                        });
+                        results.appendChild(item);
+                    });
+                }
+                results.classList.add('show');
+            }
+
+            input.addEventListener('input', function () {
+                var term = input.value.trim().toLowerCase();
+                hidden.value = ''; // أي تعديل يدوي على النص يلغي الاختيار السابق لحد ما يختار صنف من القائمة
+                if (term.length === 0) {
+                    results.classList.remove('show');
+                    return;
+                }
+                var matches = products.filter(function (p) {
+                    return p.name.toLowerCase().indexOf(term) !== -1 ||
+                           (p.barcode && p.barcode.toLowerCase().indexOf(term) !== -1);
+                });
+                renderResults(matches);
+            });
+
+            input.addEventListener('focus', function () {
+                if (input.value.trim().length > 0) input.dispatchEvent(new Event('input'));
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('.product-combo')) {
+                    results.classList.remove('show');
+                }
+            });
+
+            // لو استخدم قارئ باركود خارجي بيرسل Enter بالآخر، نمنع إرسال الفورم قبل ما نتأكد إنه لقى تطابق مباشر
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    var term = input.value.trim().toLowerCase();
+                    var exactBarcodeMatch = products.find(function (p) {
+                        return p.barcode && p.barcode.toLowerCase() === term;
+                    });
+                    if (exactBarcodeMatch) {
+                        hidden.value = exactBarcodeMatch.id;
+                        input.value = exactBarcodeMatch.name + ' (' + exactBarcodeMatch.barcode + ')';
+                        results.classList.remove('show');
+                        input.form.submit();
+                    }
+                }
+            });
+        })();
+    </script>
 }

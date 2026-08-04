@@ -385,7 +385,8 @@ namespace WarehouseUserManagement.Controllers
                         ProductName = product.ProductName,
                         CategoryName = categoryName,
                         Unit = product.Unit,
-                        AverageCost = product.AverageCost
+                        AverageCost = product.AverageCost,
+                        Barcode = product.Barcode
                     }
                 });
             }

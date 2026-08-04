@@ -1,0 +1,111 @@
+@model OldInvoiceArchiveListViewModel
+@{
+    ViewData["Title"] = "أرشيف الفواتير القديمة";
+    bool IsAdmin = User.HasClaim("perm", "*");
+    HashSet<string> RolePermissions = new(StringComparer.OrdinalIgnoreCase);
+    if (!IsAdmin && int.TryParse(User.FindFirst("RoleId")?.Value, out var currentRoleId))
+    {
+        RolePermissions = await PermissionService.GetPermissionNamesForRoleAsync(currentRoleId);
+    }
+    bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
+
+    string FormatSize(long bytes)
+    {
+        if (bytes >= 1024 * 1024) return $"{bytes / (1024.0 * 1024.0):0.0} MB";
+        if (bytes >= 1024) return $"{bytes / 1024.0:0.0} KB";
+        return $"{bytes} B";
+    }
+}
+
+<div class="page-title">
+    <h2>أرشيف الفواتير القديمة</h2>
+
+    @if (Has("Upload Old Invoices Archive"))
+    {
+        <a asp-action="Upload" class="btn btn-Prim">⬆ أرشفة ملفات جديدة</a>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card-v2">
+        <div class="stat-icon icon-blue">🗄️</div>
+        <div class="num">@Model.TotalCount</div>
+        <div class="label">إجمالي الفواتير المؤرشفة</div>
+    </div>
+ 
+
+<div class="card">
+    <p class="muted">أرشيف بسيط لملفات فواتير قديمة (صور/PDF) - بدون بيانات أو أصناف، وبدون أي تأثير على المخزون أو التقارير.</p>
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>بحث (اسم الملف / المورد / ملاحظات)</label>
+            <input type="search" name="SearchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
+        </div>
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("Index")" class="btn btn-secondary">تفريغ</a>
+    </form>
+</div>
+</div>
+<div class="card">
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:16px;">
+        @foreach (var f in Model.Files)
+        {
+            <div style="border:1px solid var(--border-color, #e2e2e2); border-radius:8px; padding:10px; text-align:center;">
+                <a href="@Url.Action("Download", new { id = f.OldInvoiceArchiveId })" target="_blank" style="display:block; text-decoration:none; color:inherit;">
+                    @if (f.IsImage)
+                    {
+                        <img src="~/@f.StoredPath" alt="@f.FileName" style="width:100%; height:120px; object-fit:cover; border-radius:6px;" />
+                    }
+                    else
+                    {
+                        <div style="width:100%; height:120px; display:flex; align-items:center; justify-content:center; font-size:42px;">📄</div>
+                    }
+                    <div style="margin-top:6px; font-size:13px; word-break:break-word;" title="@f.FileName">@f.FileName</div>
+                </a>
+
+                @if (!string.IsNullOrWhiteSpace(f.SupplierNameNote))
+                {
+                    <div class="muted" style="font-size:12px;">@f.SupplierNameNote</div>
+                }
+                @if (f.InvoiceDateNote.HasValue)
+                {
+                    <div class="muted" style="font-size:12px;">@f.InvoiceDateNote.Value.ToString("yyyy-MM-dd")</div>
+                }
+                <div class="muted" style="font-size:11px;">@FormatSize(f.FileSizeBytes) · @f.UploadedDate.ToString("yyyy-MM-dd")</div>
+
+                <div style="margin-top:8px; display:flex; gap:6px; justify-content:center;">
+                    <a href="@Url.Action("Download", new { id = f.OldInvoiceArchiveId })" class="btn btn-sm btn-secondary">تحميل</a>
+                    @if (Has("Delete Old Invoices Archive"))
+                    {
+                        <form asp-action="Delete" asp-route-id="@f.OldInvoiceArchiveId" method="post" data-confirm="حذف هذا الملف نهائياً من الأرشيف؟">
+                            <button type="submit" class="btn btn-sm btn-danger">حذف</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (!Model.Files.Any())
+        {
+            <p class="muted" style="grid-column:1/-1; text-align:center; padding:24px;">لا يوجد ملفات مؤرشفة بعد</p>
+        }
+    </div>
+
+    <div class="pagination" style="margin-top:16px;">
+        @for (int p = 1; p <= Model.TotalPages; p++)
+        {
+            <a class="@(p == Model.PageNumber ? "active" : "")"
+               href="@Url.Action("Index", new { SearchTerm = Model.SearchTerm, PageNumber = p, PageSize = Model.PageSize })">@p</a>
+        }
+    </div>
+</div>

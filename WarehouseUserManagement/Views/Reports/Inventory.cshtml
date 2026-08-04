@@ -11,8 +11,8 @@
 <div class="card">
     <form method="get" class="toolbar">
         <div class="form-group">
-            <label>بحث (اسم الصنف)</label>
-            <input type="search" name="SearchTerm" value="@Model.Filter.SearchTerm" placeholder="اكتب للبحث..." />
+            <label>بحث (اسم الصنف أو الباركود)</label>
+            <input type="search" name="SearchTerm" value="@Model.Filter.SearchTerm" placeholder="اكتب اسم الصنف أو امسح/اكتب الباركود..." />
         </div>
         <div class="form-group">
             <label>التصنيف</label>
@@ -57,6 +57,7 @@
             <thead>
                 <tr>
                     <th>الصنف</th>
+                    <th>الباركود</th>
                     <th>التصنيف</th>
                     <th>الوحدة</th>
                     <th>الكمية الحالية</th>
@@ -70,6 +71,7 @@
                 {
                     <tr class="@(r.IsLowStock ? "status-warning" : "")">
                         <td>@(r.IsLowStock ? "⚠ " : "")@r.ProductName</td>
+                        <td>@(r.Barcode ?? "-")</td>
                         <td>@r.CategoryName</td>
                         <td>@r.Unit</td>
                         <td>@r.CurrentQuantity</td>
@@ -80,7 +82,7 @@
                 }
                 @if (!Model.Rows.Any())
                 {
-                    <tr><td colspan="7" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                    <tr><td colspan="8" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
                 }
             </tbody>
         </table>

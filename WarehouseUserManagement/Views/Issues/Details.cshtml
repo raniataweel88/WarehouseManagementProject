@@ -21,7 +21,10 @@
 
 <div class="page-title">
     <h2>سند صرف رقم @Model.IssueNumber</h2>
-    <a asp-action="Index" class="btn btn-secondary">رجوع للقائمة</a>
+    <div style="display:flex; gap:10px;">
+        <a asp-action="Print" asp-route-id="@Model.IssueId" class="btn btn-secondary">🖨️ طباعة</a>
+        <a asp-action="Index" class="btn btn-secondary">رجوع للقائمة</a>
+    </div>
 </div>
 
 <div class="card">

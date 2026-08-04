@@ -10,13 +10,20 @@ namespace WarehouseUserManagement.Controllers
 {
     public class PurchaseInvoicesController : Controller
     {
+        private const string AttachmentsRelativeFolder = "uploads/purchase-invoices";
+        private static readonly string[] AllowedAttachmentContentTypes =
+            { "image/jpeg", "image/png", "image/webp", "application/pdf" };
+        private const long MaxAttachmentSizeBytes = 15 * 1024 * 1024; // 15MB
+
         private readonly AppDbContext _context;
         private readonly ICurrentUserService _currentUser;
+        private readonly IWebHostEnvironment _env;
 
-        public PurchaseInvoicesController(AppDbContext context, ICurrentUserService currentUser)
+        public PurchaseInvoicesController(AppDbContext context, ICurrentUserService currentUser, IWebHostEnvironment env)
         {
             _context = context;
             _currentUser = currentUser;
+            _env = env;
         }
 
         // GET: /PurchaseInvoices?searchTerm=&statusFilter=&pageNumber=1
@@ -96,10 +103,25 @@ namespace WarehouseUserManagement.Controllers
                 return View(model);
             }
 
+            if (!TryValidateAttachment(model.AttachmentFile, out var attachmentError))
+            {
+                ModelState.AddModelError(nameof(model.AttachmentFile), attachmentError!);
+                model.ProductOptions = await GetActiveProductOptionsAsync();
+                model.CategoryOptions = await GetActiveCategoryOptionsAsync();
+                return View(model);
+            }
+
             var invoice = BuildInvoiceFromModel(model);
             invoice.Status = PurchaseInvoiceStatus.Draft;
             invoice.CreatedBy = _currentUser.Username;
             invoice.CreatedDate = DateTime.UtcNow;
+
+            if (model.AttachmentFile is { Length: > 0 })
+            {
+                var (path, fileName) = await SaveAttachmentAsync(model.AttachmentFile);
+                invoice.AttachmentPath = path;
+                invoice.AttachmentFileName = fileName;
+            }
 
             _context.PurchaseInvoices.Add(invoice);
             await _context.SaveChangesAsync();
@@ -134,6 +156,8 @@ namespace WarehouseUserManagement.Controllers
                 Notes = invoice.Notes,
                 SalesTaxPercent = invoice.SalesTaxPercent,
                 RowVersion = invoice.RowVersion,
+                ExistingAttachmentPath = invoice.AttachmentPath,
+                ExistingAttachmentFileName = invoice.AttachmentFileName,
                 ProductOptions = await GetActiveProductOptionsAsync(),
                 CategoryOptions = await GetActiveCategoryOptionsAsync(),
                 Lines = invoice.Details.Select(d => new PurchaseInvoiceLineViewModel
@@ -168,8 +192,13 @@ namespace WarehouseUserManagement.Controllers
 
             await ValidateInvoiceAsync(model, invoiceIdToExclude: id);
 
+            if (!TryValidateAttachment(model.AttachmentFile, out var attachmentError))
+                ModelState.AddModelError(nameof(model.AttachmentFile), attachmentError!);
+
             if (!ModelState.IsValid)
             {
+                model.ExistingAttachmentPath = invoice.AttachmentPath;
+                model.ExistingAttachmentFileName = invoice.AttachmentFileName;
                 model.ProductOptions = await GetActiveProductOptionsAsync();
                 model.CategoryOptions = await GetActiveCategoryOptionsAsync();
                 return View(model);
@@ -185,6 +214,15 @@ namespace WarehouseUserManagement.Controllers
             invoice.SupplierAddress = model.SupplierAddress;
             invoice.Notes = model.Notes;
             invoice.SalesTaxPercent = model.SalesTaxPercent;
+
+            // إذا رفع المستخدم ملفاً جديداً، نستبدل المرفق القديم به (ونحذف الملف القديم من القرص)
+            if (model.AttachmentFile is { Length: > 0 })
+            {
+                DeleteAttachmentFile(invoice.AttachmentPath);
+                var (path, fileName) = await SaveAttachmentAsync(model.AttachmentFile);
+                invoice.AttachmentPath = path;
+                invoice.AttachmentFileName = fileName;
+            }
 
             // استبدال كل سطور الفاتورة بالسطور الجديدة (الفاتورة ما زالت Draft، لا تأثير على المخزون بعد)
             _context.PurchaseInvoiceDetails.RemoveRange(invoice.Details);
@@ -236,6 +274,8 @@ namespace WarehouseUserManagement.Controllers
                 PostedDate = invoice.PostedDate,
                 CancelledBy = invoice.CancelledBy,
                 CancelledDate = invoice.CancelledDate,
+                AttachmentPath = invoice.AttachmentPath,
+                AttachmentFileName = invoice.AttachmentFileName,
                 Lines = invoice.Details.Select(d => new PurchaseInvoiceDetailRow
                 {
                     ProductName = d.Product!.ProductName,
@@ -368,6 +408,58 @@ namespace WarehouseUserManagement.Controllers
 
         // ===== Helpers =====
 
+        private static bool TryValidateAttachment(IFormFile? file, out string? error)
+        {
+            error = null;
+            if (file is null || file.Length == 0) return true; // مرفق اختياري
+
+            if (file.Length > MaxAttachmentSizeBytes)
+            {
+                error = "حجم الملف كبير جداً (الحد الأقصى 15 ميجابايت)";
+                return false;
+            }
+
+            if (!AllowedAttachmentContentTypes.Contains(file.ContentType, StringComparer.OrdinalIgnoreCase))
+            {
+                error = "نوع الملف غير مدعوم. المسموح: JPG, PNG, WEBP, PDF";
+                return false;
+            }
+
+            return true;
+        }
+
+        // يحفظ الملف المرفوع على القرص تحت wwwroot/uploads/purchase-invoices باسم عشوائي (لتفادي التعارض/الاسم غير الآمن)
+        // ويرجع المسار النسبي (لتخزينه بقاعدة البيانات وبناء رابط العرض) والاسم الأصلي (للعرض للمستخدم).
+        private async Task<(string Path, string FileName)> SaveAttachmentAsync(IFormFile file)
+        {
+            var folderOnDisk = Path.Combine(_env.WebRootPath, AttachmentsRelativeFolder);
+            Directory.CreateDirectory(folderOnDisk);
+
+            var extension = Path.GetExtension(file.FileName);
+            var storedName = $"{Guid.NewGuid():N}{extension}";
+            var fullPath = Path.Combine(folderOnDisk, storedName);
+
+            await using (var stream = new FileStream(fullPath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var relativePath = $"{AttachmentsRelativeFolder}/{storedName}";
+            return (relativePath, file.FileName);
+        }
+
+        private void DeleteAttachmentFile(string? relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath)) return;
+
+            var fullPath = Path.Combine(_env.WebRootPath, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (System.IO.File.Exists(fullPath))
+            {
+                try { System.IO.File.Delete(fullPath); }
+                catch (IOException) { /* لا نمنع حفظ الفاتورة إذا تعذّر حذف الملف القديم من القرص */ }
+            }
+        }
+
         private async Task ValidateInvoiceAsync(PurchaseInvoiceFormViewModel model, int? invoiceIdToExclude)
         {
             var numberExists = await _context.PurchaseInvoices.AnyAsync(i =>
@@ -444,7 +536,8 @@ namespace WarehouseUserManagement.Controllers
                     ProductName = p.ProductName,
                     CategoryName = p.Category!.CategoryName,
                     Unit = p.Unit,
-                    AverageCost = p.AverageCost
+                    AverageCost = p.AverageCost,
+                    Barcode = p.Barcode
                 })
                 .ToListAsync();
         }

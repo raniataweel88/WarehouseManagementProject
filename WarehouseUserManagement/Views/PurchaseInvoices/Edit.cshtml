@@ -10,6 +10,12 @@
     bool Has(string perm) => IsAdmin || RolePermissions.Contains(perm);
     bool CanAddProduct = Has("Add Product");
 }
+<style>
+    .scan-flash {
+        background-color: #d1f7dd !important;
+        transition: background-color 0.7s ease;
+    }
+</style>
 
 
 <div class="page-title">
@@ -17,12 +23,38 @@
     <a asp-action="Index" class="btn btn-secondary">رجوع للقائمة</a>
 </div>
 
-<form asp-action="Edit" asp-route-id="@Model.PurchaseInvoiceId" method="post" id="invoiceForm">
+<form asp-action="Edit" asp-route-id="@Model.PurchaseInvoiceId" method="post" id="invoiceForm" enctype="multipart/form-data">
 
     <input type="hidden" asp-for="PurchaseInvoiceId" />
     <input type="hidden" asp-for="RowVersion" />
+    <input type="hidden" asp-for="ExistingAttachmentPath" />
+    <input type="hidden" asp-for="ExistingAttachmentFileName" />
 
     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="card">
+        <div class="page-title" style="margin-bottom:12px;">
+            <h2 style="font-size:18px;">إرفاق الفاتورة الورقية</h2>
+        </div>
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label asp-for="AttachmentFile">صورة أو PDF للفاتورة</label>
+                <input asp-for="AttachmentFile" type="file" class="form-control" accept="image/*,application/pdf" />
+                <span asp-validation-for="AttachmentFile" class="text-danger"></span>
+                @if (!string.IsNullOrWhiteSpace(Model.ExistingAttachmentPath))
+                {
+                    <p class="muted" style="margin:6px 0 0;">
+                        يوجد مرفق حالياً: <a href="~/@Model.ExistingAttachmentPath" target="_blank">@Model.ExistingAttachmentFileName</a>
+                        - رفع ملف جديد سيستبدله.
+                    </p>
+                }
+                else
+                {
+                    <p class="muted" style="margin:6px 0 0;">لا يوجد مرفق حالياً (اختياري).</p>
+                }
+            </div>
+        </div>
+    </div>
 
     <div class="card">
         <div class="form-grid">
@@ -60,6 +92,11 @@
         <div class="page-title" style="margin-bottom:12px;">
             <h2 style="font-size:18px;">أصناف الفاتورة</h2>
             <button type="button" id="addLineBtn" class="btn btn-sm btn-secondary">+ إضافة سطر</button>
+        </div>
+
+        <div class="form-group full-width" style="margin-bottom:16px;">
+            <label for="barcodeScanInput">مسح الباركود</label>
+            <input type="text" id="barcodeScanInput" class="form-control" placeholder="🔫 امسح الباركود بالسكانر أو اكتبه واضغط Enter" autocomplete="off" />
         </div>
 
         <div class="table-responsive">
@@ -159,410 +196,476 @@
 }
 
 @section Scripts {
-<script id="productOptionsData" type="application/json">
-    @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ProductOptions, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
-</script>
-<script id="existingLinesData" type="application/json">
-    @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Lines, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
-</script>
-<script>
-    // نمنع مفتاح Enter من إرسال الفورم مباشرة وهو المستخدم عم يعبّي حقول السطر (الكمية، السعر، ...)
-    // - لازم يضغط على زر الحفظ فعلياً حتى تُرسل الفاتورة/العملية
-    var mainFormInvoiceForm = document.getElementById('invoiceForm');
+    <script id="productOptionsData" type="application/json">
+        @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ProductOptions, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
+    </script>
+    <script id="existingLinesData" type="application/json">
+        @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Lines, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
+    </script>
+    <script>
+        // نمنع مفتاح Enter من إرسال الفورم مباشرة وهو المستخدم عم يعبّي حقول السطر (الكمية، السعر، ...)
+        // - لازم يضغط على زر الحفظ فعلياً حتى تُرسل الفاتورة/العملية
+        var mainFormInvoiceForm = document.getElementById('invoiceForm');
 
-    mainFormInvoiceForm.addEventListener('keydown', function (e) {
-        if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA') return;
+        mainFormInvoiceForm.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA') return;
 
-        // في حقول الكمية والسعر: الإنتر ينقل التركيز للحقل التالي بدل ما يتم تجاهله فقط
-        if (e.target.classList.contains('line-qty') || e.target.classList.contains('line-price')) {
+            // في حقول الكمية والسعر: الإنتر ينقل التركيز للحقل التالي بدل ما يتم تجاهله فقط
+            if (e.target.classList.contains('line-qty') || e.target.classList.contains('line-price')) {
+                e.preventDefault();
+                focusNextLineField(e.target);
+                return;
+            }
+
             e.preventDefault();
-            focusNextLineField(e.target);
-            return;
-        }
-
-        e.preventDefault();
-    });
-
-    // ينقل التركيز من حقل الكمية لحقل السعر، ومن السعر لصنف السطر التالي (أو زر إضافة سطر إذا كان آخر سطر)
-    function focusNextLineField(el) {
-        const row = el.closest('tr');
-        if (!row) return;
-
-        if (el.classList.contains('line-qty')) {
-            row.querySelector('.line-price')?.focus();
-            return;
-        }
-
-        const nextRow = row.nextElementSibling;
-        if (nextRow) {
-            nextRow.querySelector('.product-picker-btn')?.focus();
-        } else {
-            document.getElementById('addLineBtn')?.focus();
-        }
-    }
-
-    // شبكة أمان إضافية: أي إرسال "ضمني" (Enter) ما يترافق مع submitter (يعني ما حدا ضغط فعلياً
-    // على زر الحفظ) يتم تجاهله، حتى لو نجا من منع الـ keydown لأي سبب (متصفح/نوع حقل مختلف)
-    mainFormInvoiceForm.addEventListener('submit', function (e) {
-        if (!e.submitter) {
-            e.preventDefault();
-            return;
-        }
-
-        if (!validateInvoiceLines()) {
-            e.preventDefault();
-        }
-    });
-
-    // تتحقق من كل سطر مستخدم (اختار له المستخدم صنف أو عبّى كمية/سعر) وتوقف الإرسال
-    // مع تركيز أول حقل ناقص وتوضيح المشكلة بالتحديد، بدل ما الفورم يفشل بصمت
-    function validateInvoiceLines() {
-        clearLineErrors();
-
-        const rows = Array.from(linesBody.querySelectorAll('tr'));
-        const usedRows = rows.filter(row => {
-            const productId = row.querySelector('.line-product-id').value;
-            const qty = row.querySelector('.line-qty').value;
-            const price = row.querySelector('.line-price').value;
-            return productId || qty || price;
         });
 
-        if (usedRows.length === 0) {
-            Swal.fire({ icon: 'warning', title: 'الفاتورة فارغة', text: 'أضف صنف واحد على الأقل مع الكمية والسعر' });
-            return false;
-        }
+        // ينقل التركيز من حقل الكمية لحقل السعر، ومن السعر لصنف السطر التالي (أو زر إضافة سطر إذا كان آخر سطر)
+        function focusNextLineField(el) {
+            const row = el.closest('tr');
+            if (!row) return;
 
-        for (const row of usedRows) {
-            const productBtn = row.querySelector('.product-picker-btn');
-            const productId = row.querySelector('.line-product-id').value;
-            const qtyInput = row.querySelector('.line-qty');
-            const priceInput = row.querySelector('.line-price');
+            if (el.classList.contains('line-qty')) {
+                row.querySelector('.line-price')?.focus();
+                return;
+            }
 
-            if (!productId) {
-                markInvalid(productBtn);
-                productBtn.focus();
-                Swal.fire({ icon: 'warning', title: 'الصنف مفقود', text: 'الرجاء اختيار الصنف لهذا السطر' });
-                return false;
-            }
-            if (!qtyInput.value || parseFloat(qtyInput.value) <= 0) {
-                markInvalid(qtyInput);
-                qtyInput.focus();
-                Swal.fire({ icon: 'warning', title: 'الكمية فارغة', text: 'الرجاء إدخال الكمية لهذا السطر' });
-                return false;
-            }
-            if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
-                markInvalid(priceInput);
-                priceInput.focus();
-                Swal.fire({ icon: 'warning', title: 'السعر فارغ', text: 'الرجاء إدخال سعر الوحدة لهذا السطر' });
-                return false;
+            const nextRow = row.nextElementSibling;
+            if (nextRow) {
+                nextRow.querySelector('.product-picker-btn')?.focus();
+            } else {
+                document.getElementById('addLineBtn')?.focus();
             }
         }
 
-        return true;
-    }
+        // شبكة أمان إضافية: أي إرسال "ضمني" (Enter) ما يترافق مع submitter (يعني ما حدا ضغط فعلياً
+        // على زر الحفظ) يتم تجاهله، حتى لو نجا من منع الـ keydown لأي سبب (متصفح/نوع حقل مختلف)
+        mainFormInvoiceForm.addEventListener('submit', function (e) {
+            if (!e.submitter) {
+                e.preventDefault();
+                return;
+            }
 
-    function markInvalid(el) {
-        el.classList.add('is-invalid');
-        const clear = () => el.classList.remove('is-invalid');
-        el.addEventListener('input', clear, { once: true });
-        el.addEventListener('click', clear, { once: true });
-    }
-
-    function clearLineErrors() {
-        linesBody.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-    }
-
-    // نطبّع أسماء الحقول (تدعم camelCase أو PascalCase) حتى لا يتعطل البحث إذا تغيّر إعداد تسمية الـ JSON مستقبلاً
-    function normalizeProduct(p) {
-        return {
-            productId: Number(p.productId ?? p.ProductId),
-            productName: p.productName ?? p.ProductName ?? '',
-            categoryName: p.categoryName ?? p.CategoryName ?? '',
-            unit: p.unit ?? p.Unit ?? '',
-            averageCost: Number(p.averageCost ?? p.AverageCost ?? 0)
-        };
-    }
-
-    function normalizeLine(l) {
-        return {
-            productId: Number(l.productId ?? l.ProductId),
-            quantity: Number(l.quantity ?? l.Quantity ?? 0),
-            unitPrice: Number(l.unitPrice ?? l.UnitPrice ?? 0)
-        };
-    }
-
-    const products = JSON.parse(document.getElementById('productOptionsData').textContent).map(normalizeProduct);
-    const existingLines = JSON.parse(document.getElementById('existingLinesData').textContent).map(normalizeLine);
-    const linesBody = document.getElementById('linesBody');
-    const canAddProduct = @Json.Serialize(CanAddProduct);
-    let lineIndex = 0;
-
-    // ===== عناصر قائمة بحث الأصناف =====
-    const productDropdown = document.getElementById('productDropdown');
-    const productSearchInput = document.getElementById('productSearchInput');
-    const productDropdownList = document.getElementById('productDropdownList');
-    const addNewProductBtn = document.getElementById('addNewProductBtn');
-
-    // ===== نافذة إضافة صنف جديد =====
-    const quickAddModalEl = document.getElementById('quickAddProductModal');
-    const quickAddModal = quickAddModalEl ? new bootstrap.Modal(quickAddModalEl) : null;
-    const quickAddForm = document.getElementById('quickAddProductForm');
-    const qapErrors = document.getElementById('qapErrors');
-    const qapSaveBtn = document.getElementById('qapSaveBtn');
-
-    let activeCell = null;   // خلية الصنف المفتوحة حالياً للبحث
-    let pendingCell = null;  // الخلية التي طلبت "إضافة صنف جديد"
-
-    function escapeHtml(str) {
-        return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
-
-    function findProduct(id) {
-        return products.find(p => p.productId === Number(id));
-    }
-
-    // كل الأصناف المختارة حالياً في باقي سطور الفاتورة (لمنع تكرار نفس الصنف)
-    function usedProductIds(excludeCell) {
-        const ids = [];
-        linesBody.querySelectorAll('.product-picker').forEach(cell => {
-            if (cell === excludeCell) return;
-            const val = cell.querySelector('.line-product-id').value;
-            if (val) ids.push(Number(val));
+            if (!validateInvoiceLines()) {
+                e.preventDefault();
+            }
         });
-        return ids;
-    }
 
-    function setCellLabel(cell, product) {
-        const label = cell.querySelector('.product-picker-label');
-        if (product) {
-            label.textContent = `${product.productName} (${product.categoryName})`;
-            label.classList.remove('placeholder-text');
-        } else {
-            label.textContent = '-- اختر الصنف --';
-            label.classList.add('placeholder-text');
-        }
-    }
+        // تتحقق من كل سطر مستخدم (اختار له المستخدم صنف أو عبّى كمية/سعر) وتوقف الإرسال
+        // مع تركيز أول حقل ناقص وتوضيح المشكلة بالتحديد، بدل ما الفورم يفشل بصمت
+        function validateInvoiceLines() {
+            clearLineErrors();
 
-    function selectProduct(cell, productId) {
-        const product = findProduct(productId);
-        if (!product) return;
-
-        if (usedProductIds(cell).includes(product.productId)) {
-            closeDropdown();
-            Swal.fire({
-                icon: 'warning',
-                title: 'الصنف مضاف مسبقاً',
-                text: 'هذا الصنف موجود بالفعل في الفاتورة.'
+            const rows = Array.from(linesBody.querySelectorAll('tr'));
+            const usedRows = rows.filter(row => {
+                const productId = row.querySelector('.line-product-id').value;
+                const qty = row.querySelector('.line-qty').value;
+                const price = row.querySelector('.line-price').value;
+                return productId || qty || price;
             });
-            return;
+
+            if (usedRows.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'الفاتورة فارغة', text: 'أضف صنف واحد على الأقل مع الكمية والسعر' });
+                return false;
+            }
+
+            for (const row of usedRows) {
+                const productBtn = row.querySelector('.product-picker-btn');
+                const productId = row.querySelector('.line-product-id').value;
+                const qtyInput = row.querySelector('.line-qty');
+                const priceInput = row.querySelector('.line-price');
+
+                if (!productId) {
+                    markInvalid(productBtn);
+                    productBtn.focus();
+                    Swal.fire({ icon: 'warning', title: 'الصنف مفقود', text: 'الرجاء اختيار الصنف لهذا السطر' });
+                    return false;
+                }
+                if (!qtyInput.value || parseFloat(qtyInput.value) <= 0) {
+                    markInvalid(qtyInput);
+                    qtyInput.focus();
+                    Swal.fire({ icon: 'warning', title: 'الكمية فارغة', text: 'الرجاء إدخال الكمية لهذا السطر' });
+                    return false;
+                }
+                if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
+                    markInvalid(priceInput);
+                    priceInput.focus();
+                    Swal.fire({ icon: 'warning', title: 'السعر فارغ', text: 'الرجاء إدخال سعر الوحدة لهذا السطر' });
+                    return false;
+                }
+            }
+
+            return true;
         }
 
-        cell.querySelector('.line-product-id').value = product.productId;
-        setCellLabel(cell, product);
-        closeDropdown();
-    }
-
-    function renderDropdownList(term) {
-        const t = (term || '').trim().toLowerCase();
-        const excluded = activeCell ? usedProductIds(activeCell) : [];
-        const matches = products.filter(p => {
-            if (excluded.includes(p.productId)) return false;
-            if (!t) return true;
-            return p.productName.toLowerCase().includes(t) || p.categoryName.toLowerCase().includes(t);
-        });
-
-        if (matches.length === 0) {
-            productDropdownList.innerHTML = '<div class="product-dropdown-empty">لا توجد نتائج مطابقة</div>';
-            return;
+        function markInvalid(el) {
+            el.classList.add('is-invalid');
+            const clear = () => el.classList.remove('is-invalid');
+            el.addEventListener('input', clear, { once: true });
+            el.addEventListener('click', clear, { once: true });
         }
 
-        productDropdownList.innerHTML = matches.map(p => `
-            <button type="button" class="product-dropdown-item" data-id="${p.productId}">
-                <span class="pdi-name">${escapeHtml(p.productName)}</span>
-                <span class="pdi-meta">${escapeHtml(p.categoryName)} · ${escapeHtml(p.unit)}</span>
-            </button>
-        `).join('');
-    }
-
-    function positionDropdown(cell) {
-        const btn = cell.querySelector('.product-picker-btn');
-        const rect = btn.getBoundingClientRect();
-        const dropdownWidth = Math.max(rect.width, 260);
-        productDropdown.style.width = `${dropdownWidth}px`;
-
-        // نقيس ارتفاع القائمة الفعلي (بعد ما صارت ظاهرة ومليانة بالنتائج) حتى نعرف
-        // إذا في مسافة كافية تحت الحقل، وإلا نفتحها فوقه بدل ما تنقص عن حدود الشاشة
-        const dropdownHeight = productDropdown.offsetHeight;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const spaceAbove = rect.top;
-
-        if (spaceBelow < dropdownHeight + 8 && spaceAbove > spaceBelow) {
-            productDropdown.style.top = `${Math.max(8, rect.top - dropdownHeight - 4)}px`;
-        } else {
-            const top = Math.min(rect.bottom + 4, window.innerHeight - dropdownHeight - 8);
-            productDropdown.style.top = `${Math.max(8, top)}px`;
+        function clearLineErrors() {
+            linesBody.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
         }
 
-        productDropdown.style.left = `${rect.left}px`;
-    }
+        // نطبّع أسماء الحقول (تدعم camelCase أو PascalCase) حتى لا يتعطل البحث إذا تغيّر إعداد تسمية الـ JSON مستقبلاً
+        function normalizeProduct(p) {
+            return {
+                productId: Number(p.productId ?? p.ProductId),
+                productName: p.productName ?? p.ProductName ?? '',
+                categoryName: p.categoryName ?? p.CategoryName ?? '',
+                barcode: p.barcode ?? p.Barcode ?? '',
+                unit: p.unit ?? p.Unit ?? '',
+                averageCost: Number(p.averageCost ?? p.AverageCost ?? 0)
+            };
+        }
 
-    function openDropdown(cell) {
-        activeCell = cell;
-        productDropdown.style.display = 'block';
+        function normalizeLine(l) {
+            return {
+                productId: Number(l.productId ?? l.ProductId),
+                quantity: Number(l.quantity ?? l.Quantity ?? 0),
+                unitPrice: Number(l.unitPrice ?? l.UnitPrice ?? 0)
+            };
+        }
 
-        // نملأ القائمة قبل حساب موضعها حتى يكون ارتفاعها الحقيقي جاهز للقياس
-        productSearchInput.value = '';
-        renderDropdownList('');
+        const products = JSON.parse(document.getElementById('productOptionsData').textContent).map(normalizeProduct);
+        const existingLines = JSON.parse(document.getElementById('existingLinesData').textContent).map(normalizeLine);
+        const linesBody = document.getElementById('linesBody');
+        const canAddProduct = @Json.Serialize(CanAddProduct);
+        let lineIndex = 0;
 
-        positionDropdown(cell);
-        productSearchInput.focus();
-    }
+        // ===== عناصر قائمة بحث الأصناف =====
+        const productDropdown = document.getElementById('productDropdown');
+        const productSearchInput = document.getElementById('productSearchInput');
+        const productDropdownList = document.getElementById('productDropdownList');
+        const addNewProductBtn = document.getElementById('addNewProductBtn');
 
-    function closeDropdown() {
-        productDropdown.style.display = 'none';
-        activeCell = null;
-    }
+        // ===== نافذة إضافة صنف جديد =====
+        const quickAddModalEl = document.getElementById('quickAddProductModal');
+        const quickAddModal = quickAddModalEl ? new bootstrap.Modal(quickAddModalEl) : null;
+        const quickAddForm = document.getElementById('quickAddProductForm');
+        const qapErrors = document.getElementById('qapErrors');
+        const qapSaveBtn = document.getElementById('qapSaveBtn');
 
-    document.addEventListener('click', function (e) {
-        if (productDropdown.style.display !== 'block') return;
-        if (productDropdown.contains(e.target)) return;
-        if (e.target.closest('.product-picker-btn')) return;
-        closeDropdown();
-    });
+        let activeCell = null;   // خلية الصنف المفتوحة حالياً للبحث
+        let pendingCell = null;  // الخلية التي طلبت "إضافة صنف جديد"
 
-    // نعيد ضبط موضع القائمة بدل إغلاقها عند أي تمرير (بما في ذلك التمرير الذي يسببه ظهور
-    // لوحة المفاتيح على الجوال عند الضغط داخل مربع البحث) - القائمة تبقى مفتوحة دائماً حتى يختار المستخدم صنفاً أو يضغط خارجها
-    window.addEventListener('scroll', function (e) {
-        if (!activeCell) return;
-        if (productDropdown.contains(e.target)) return; // تمرير داخل نتائج البحث نفسها
-        positionDropdown(activeCell);
-    }, true);
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
 
-    window.addEventListener('resize', function () {
-        if (activeCell) positionDropdown(activeCell);
-    });
+        function findProduct(id) {
+            return products.find(p => p.productId === Number(id));
+        }
 
-    productSearchInput.addEventListener('input', () => renderDropdownList(productSearchInput.value));
+        // كل الأصناف المختارة حالياً في باقي سطور الفاتورة (لمنع تكرار نفس الصنف)
+        function usedProductIds(excludeCell) {
+            const ids = [];
+            linesBody.querySelectorAll('.product-picker').forEach(cell => {
+                if (cell === excludeCell) return;
+                const val = cell.querySelector('.line-product-id').value;
+                if (val) ids.push(Number(val));
+            });
+            return ids;
+        }
 
-    productDropdownList.addEventListener('click', function (e) {
-        const item = e.target.closest('.product-dropdown-item');
-        if (!item || !activeCell) return;
-        selectProduct(activeCell, item.dataset.id);
-    });
+        function setCellLabel(cell, product) {
+            const label = cell.querySelector('.product-picker-label');
+            if (product) {
+                label.textContent = `${product.productName} (${product.categoryName})`;
+                label.classList.remove('placeholder-text');
+            } else {
+                label.textContent = '-- اختر الصنف --';
+                label.classList.add('placeholder-text');
+            }
+        }
 
-    if (addNewProductBtn) {
-        addNewProductBtn.addEventListener('click', function () {
-            pendingCell = activeCell;
-            closeDropdown();
-            qapErrors.style.display = 'none';
-            quickAddForm.reset();
-            quickAddModal.show();
-        });
-    }
+        function selectProduct(cell, productId) {
+            const product = findProduct(productId);
+            if (!product) return;
 
-    if (quickAddForm) {
-        quickAddForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            const fd = new FormData(quickAddForm);
-            qapSaveBtn.disabled = true;
-
-            fetch('/Products/QuickCreate', { method: 'POST', body: fd })
-                .then(async r => ({ ok: r.ok, data: await r.json().catch(() => ({})) }))
-                .then(({ ok, data }) => {
-                    qapSaveBtn.disabled = false;
-                    if (!ok || !data.success) {
-                        qapErrors.style.display = 'block';
-                        qapErrors.innerHTML = (data.errors && data.errors.length ? data.errors : ['تعذر حفظ الصنف، حاول مرة أخرى']).join('<br/>');
-                        return;
-                    }
-                    const newProduct = normalizeProduct(data.product);
-                    products.push(newProduct);
-                    quickAddModal.hide();
-                    if (pendingCell) {
-                        selectProduct(pendingCell, newProduct.productId);
-                        pendingCell = null;
-                    }
-                })
-                .catch(() => {
-                    qapSaveBtn.disabled = false;
-                    qapErrors.style.display = 'block';
-                    qapErrors.textContent = 'تعذر الاتصال بالخادم';
+            if (usedProductIds(cell).includes(product.productId)) {
+                closeDropdown();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'الصنف مضاف مسبقاً',
+                    text: 'هذا الصنف موجود بالفعل في الفاتورة.'
                 });
-        });
-    }
+                return;
+            }
 
-    function productPickerHtml(idx, productId) {
-        const product = productId ? findProduct(productId) : null;
-        const label = product ? `${product.productName} (${product.categoryName})` : '-- اختر الصنف --';
-        const placeholderClass = product ? '' : 'placeholder-text';
-        return `
-            <div class="product-picker">
-                <input type="hidden" class="line-product-id" name="Lines[${idx}].ProductId" value="${productId || ''}" />
-                <button type="button" class="form-control product-picker-btn text-start">
-                    <span class="product-picker-label ${placeholderClass}">${label}</span>
+            cell.querySelector('.line-product-id').value = product.productId;
+            setCellLabel(cell, product);
+            closeDropdown();
+        }
+
+        function renderDropdownList(term) {
+            const t = (term || '').trim().toLowerCase();
+            const excluded = activeCell ? usedProductIds(activeCell) : [];
+            const matches = products.filter(p => {
+                if (excluded.includes(p.productId)) return false;
+                if (!t) return true;
+                return p.productName.toLowerCase().includes(t) || p.categoryName.toLowerCase().includes(t) || (p.barcode && p.barcode.toLowerCase().includes(t));
+            });
+
+            if (matches.length === 0) {
+                productDropdownList.innerHTML = '<div class="product-dropdown-empty">لا توجد نتائج مطابقة</div>';
+                return;
+            }
+
+            productDropdownList.innerHTML = matches.map(p => `
+                <button type="button" class="product-dropdown-item" data-id="${p.productId}">
+                    <span class="pdi-name">${escapeHtml(p.productName)}</span>
+                    <span class="pdi-meta">${escapeHtml(p.categoryName)} · ${escapeHtml(p.unit)}${p.barcode ? " · " + escapeHtml(p.barcode) : ""}</span>
                 </button>
-            </div>
-        `;
-    }
+            `).join('');
+        }
 
-    function addLine(productId, quantity, unitPrice) {
-        const idx = lineIndex++;
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${productPickerHtml(idx, productId)}</td>
-            <td><input type="number" step="0.001" min="0.001" class="form-control line-qty" name="Lines[${idx}].Quantity" value="${quantity || ''}" /></td>
-            <td><input type="number" step="0.01" min="0.01" class="form-control line-price" name="Lines[${idx}].UnitPrice" value="${unitPrice || ''}" /></td>
-            <td><input type="text" class="form-control line-total" value="0.00" readonly /></td>
-            <td><button type="button" class="btn btn-sm btn-danger removeLineBtn">حذف</button></td>
-        `;
-        linesBody.appendChild(row);
-        wireRow(row);
-        recalcTotals();
-    }
+        function positionDropdown(cell) {
+            const btn = cell.querySelector('.product-picker-btn');
+            const rect = btn.getBoundingClientRect();
+            const dropdownWidth = Math.max(rect.width, 260);
+            productDropdown.style.width = `${dropdownWidth}px`;
 
-    function wireRow(row) {
-        const qty = row.querySelector('.line-qty');
-        const price = row.querySelector('.line-price');
-        const removeBtn = row.querySelector('.removeLineBtn');
-        const cell = row.querySelector('.product-picker');
-        const pickerBtn = cell.querySelector('.product-picker-btn');
+            // نقيس ارتفاع القائمة الفعلي (بعد ما صارت ظاهرة ومليانة بالنتائج) حتى نعرف
+            // إذا في مسافة كافية تحت الحقل، وإلا نفتحها فوقه بدل ما تنقص عن حدود الشاشة
+            const dropdownHeight = productDropdown.offsetHeight;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
 
-        [qty, price].forEach(el => el.addEventListener('input', recalcTotals));
+            if (spaceBelow < dropdownHeight + 8 && spaceAbove > spaceBelow) {
+                productDropdown.style.top = `${Math.max(8, rect.top - dropdownHeight - 4)}px`;
+            } else {
+                const top = Math.min(rect.bottom + 4, window.innerHeight - dropdownHeight - 8);
+                productDropdown.style.top = `${Math.max(8, top)}px`;
+            }
 
-        pickerBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            if (activeCell === cell) { closeDropdown(); return; }
-            openDropdown(cell);
+            productDropdown.style.left = `${rect.left}px`;
+        }
+
+        function openDropdown(cell) {
+            activeCell = cell;
+            productDropdown.style.display = 'block';
+
+            // نملأ القائمة قبل حساب موضعها حتى يكون ارتفاعها الحقيقي جاهز للقياس
+            productSearchInput.value = '';
+            renderDropdownList('');
+
+            positionDropdown(cell);
+            productSearchInput.focus();
+        }
+
+        function closeDropdown() {
+            productDropdown.style.display = 'none';
+            activeCell = null;
+        }
+
+        document.addEventListener('click', function (e) {
+            if (productDropdown.style.display !== 'block') return;
+            if (productDropdown.contains(e.target)) return;
+            if (e.target.closest('.product-picker-btn')) return;
+            closeDropdown();
         });
 
-        removeBtn.addEventListener('click', function () {
-            if (linesBody.children.length <= 1) return;
-            if (activeCell === cell) closeDropdown();
-            row.remove();
+        // نعيد ضبط موضع القائمة بدل إغلاقها عند أي تمرير (بما في ذلك التمرير الذي يسببه ظهور
+        // لوحة المفاتيح على الجوال عند الضغط داخل مربع البحث) - القائمة تبقى مفتوحة دائماً حتى يختار المستخدم صنفاً أو يضغط خارجها
+        window.addEventListener('scroll', function (e) {
+            if (!activeCell) return;
+            if (productDropdown.contains(e.target)) return; // تمرير داخل نتائج البحث نفسها
+            positionDropdown(activeCell);
+        }, true);
+
+        window.addEventListener('resize', function () {
+            if (activeCell) positionDropdown(activeCell);
+        });
+
+        productSearchInput.addEventListener('input', () => renderDropdownList(productSearchInput.value));
+
+        productDropdownList.addEventListener('click', function (e) {
+            const item = e.target.closest('.product-dropdown-item');
+            if (!item || !activeCell) return;
+            selectProduct(activeCell, item.dataset.id);
+        });
+
+        if (addNewProductBtn) {
+            addNewProductBtn.addEventListener('click', function () {
+                pendingCell = activeCell;
+                closeDropdown();
+                qapErrors.style.display = 'none';
+                quickAddForm.reset();
+                quickAddModal.show();
+            });
+        }
+
+        if (quickAddForm) {
+            quickAddForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const fd = new FormData(quickAddForm);
+                qapSaveBtn.disabled = true;
+
+                fetch('/Products/QuickCreate', { method: 'POST', body: fd })
+                    .then(async r => ({ ok: r.ok, data: await r.json().catch(() => ({})) }))
+                    .then(({ ok, data }) => {
+                        qapSaveBtn.disabled = false;
+                        if (!ok || !data.success) {
+                            qapErrors.style.display = 'block';
+                            qapErrors.innerHTML = (data.errors && data.errors.length ? data.errors : ['تعذر حفظ الصنف، حاول مرة أخرى']).join('<br/>');
+                            return;
+                        }
+                        const newProduct = normalizeProduct(data.product);
+                        products.push(newProduct);
+                        quickAddModal.hide();
+                        if (pendingCell) {
+                            selectProduct(pendingCell, newProduct.productId);
+                            pendingCell = null;
+                        }
+                    })
+                    .catch(() => {
+                        qapSaveBtn.disabled = false;
+                        qapErrors.style.display = 'block';
+                        qapErrors.textContent = 'تعذر الاتصال بالخادم';
+                    });
+            });
+        }
+
+        function productPickerHtml(idx, productId) {
+            const product = productId ? findProduct(productId) : null;
+            const label = product ? `${product.productName} (${product.categoryName})` : '-- اختر الصنف --';
+            const placeholderClass = product ? '' : 'placeholder-text';
+            return `
+                <div class="product-picker">
+                    <input type="hidden" class="line-product-id" name="Lines[${idx}].ProductId" value="${productId || ''}" />
+                    <button type="button" class="form-control product-picker-btn text-start">
+                        <span class="product-picker-label ${placeholderClass}">${label}</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        function addLine(productId, quantity, unitPrice) {
+            const idx = lineIndex++;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${productPickerHtml(idx, productId)}</td>
+                <td><input type="number" step="0.001" min="0.001" class="form-control line-qty" name="Lines[${idx}].Quantity" value="${quantity || ''}" /></td>
+                <td><input type="number" step="0.01" min="0.01" class="form-control line-price" name="Lines[${idx}].UnitPrice" value="${unitPrice || ''}" /></td>
+                <td><input type="text" class="form-control line-total" value="0.00" readonly /></td>
+                <td><button type="button" class="btn btn-sm btn-danger removeLineBtn">حذف</button></td>
+            `;
+            linesBody.appendChild(row);
+            wireRow(row);
             recalcTotals();
+        }
+
+        function wireRow(row) {
+            const qty = row.querySelector('.line-qty');
+            const price = row.querySelector('.line-price');
+            const removeBtn = row.querySelector('.removeLineBtn');
+            const cell = row.querySelector('.product-picker');
+            const pickerBtn = cell.querySelector('.product-picker-btn');
+
+            [qty, price].forEach(el => el.addEventListener('input', recalcTotals));
+
+            pickerBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (activeCell === cell) { closeDropdown(); return; }
+                openDropdown(cell);
+            });
+
+            removeBtn.addEventListener('click', function () {
+                if (linesBody.children.length <= 1) return;
+                if (activeCell === cell) closeDropdown();
+                row.remove();
+                recalcTotals();
+            });
+        }
+
+        function recalcTotals() {
+            let subTotal = 0;
+            linesBody.querySelectorAll('tr').forEach(row => {
+                const qty = parseFloat(row.querySelector('.line-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.line-price').value) || 0;
+                const total = qty * price;
+                row.querySelector('.line-total').value = total.toFixed(2);
+                subTotal += total;
+            });
+
+            document.getElementById('grandTotalDisplay').value = subTotal.toFixed(2);
+        }
+
+        document.getElementById('addLineBtn').addEventListener('click', () => addLine());
+
+        // ===== مسح الباركود (سكانر) وإضافة/زيادة الصنف تلقائياً على الفاتورة =====
+        const barcodeScanInput = document.getElementById('barcodeScanInput');
+
+        function flashRow(row) {
+            row.classList.add('scan-flash');
+            setTimeout(() => row.classList.remove('scan-flash'), 700);
+        }
+
+        function findRowByProductId(productId) {
+            return Array.from(linesBody.querySelectorAll('tr')).find(row =>
+                Number(row.querySelector('.line-product-id').value) === Number(productId));
+        }
+
+        function findEmptyRow() {
+            return Array.from(linesBody.querySelectorAll('tr')).find(row =>
+                !row.querySelector('.line-product-id').value);
+        }
+
+        function scanBarcode() {
+            const code = barcodeScanInput.value.trim();
+            barcodeScanInput.value = '';
+            if (!code) return;
+
+            const product = products.find(p => p.barcode && p.barcode.toLowerCase() === code.toLowerCase());
+            if (!product) {
+                Swal.fire({ icon: 'warning', title: 'صنف غير موجود', text: `لا يوجد صنف بالباركود: ${code}` });
+                barcodeScanInput.focus();
+                return;
+            }
+
+            const existingRow = findRowByProductId(product.productId);
+            if (existingRow) {
+                const qtyInput = existingRow.querySelector('.line-qty');
+                qtyInput.value = (parseFloat(qtyInput.value) || 0) + 1;
+                qtyInput.dispatchEvent(new Event('input'));
+                flashRow(existingRow);
+                barcodeScanInput.focus();
+                return;
+            }
+
+            const emptyRow = findEmptyRow();
+            if (emptyRow) {
+                const cell = emptyRow.querySelector('.product-picker');
+                selectProduct(cell, product.productId);
+                const qtyInput = emptyRow.querySelector('.line-qty');
+                qtyInput.value = 1;
+                const priceInput = emptyRow.querySelector('.line-price');
+                if (!priceInput.value && product.averageCost) priceInput.value = product.averageCost;
+                qtyInput.dispatchEvent(new Event('input'));
+                flashRow(emptyRow);
+            } else {
+                addLine(product.productId, 1, product.averageCost || '');
+                flashRow(linesBody.lastElementChild);
+            }
+
+            barcodeScanInput.focus();
+        }
+
+        barcodeScanInput.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            e.stopPropagation();
+            scanBarcode();
         });
-    }
 
-    function recalcTotals() {
-        let subTotal = 0;
-        linesBody.querySelectorAll('tr').forEach(row => {
-            const qty = parseFloat(row.querySelector('.line-qty').value) || 0;
-            const price = parseFloat(row.querySelector('.line-price').value) || 0;
-            const total = qty * price;
-            row.querySelector('.line-total').value = total.toFixed(2);
-            subTotal += total;
-        });
-
-        document.getElementById('grandTotalDisplay').value = subTotal.toFixed(2);
-    }
-
-    document.getElementById('addLineBtn').addEventListener('click', () => addLine());
-
-    // تحميل السطور الموجودة مسبقاً، أو سطر فارغ واحد إن لم يوجد شيء
-    if (existingLines.length > 0) {
-        existingLines.forEach(l => addLine(l.productId, l.quantity, l.unitPrice));
-    } else {
-        addLine();
-    }
-</script>
+        // تحميل السطور الموجودة مسبقاً، أو سطر فارغ واحد إن لم يوجد شيء
+        if (existingLines.length > 0) {
+            existingLines.forEach(l => addLine(l.productId, l.quantity, l.unitPrice));
+        } else {
+            addLine();
+        }
+    </script>
 }

@@ -1,0 +1,57 @@
+@model OldInvoiceArchiveUploadViewModel
+@{
+    ViewData["Title"] = "أرشفة فواتير قديمة";
+}
+
+<div class="page-title">
+    <h2>أرشفة فواتير قديمة</h2>
+    <a asp-action="Index" class="btn btn-secondary">رجوع للأرشيف</a>
+</div>
+
+<div class="card">
+    <p class="muted">
+        ارفع صور أو ملفات PDF لفواتير قديمة انتهت فعلياً - تُحفظ كملفات فقط للرجوع إليها لاحقاً،
+        بدون إدخال أي بيانات أو أصناف، وبدون أي تأثير على المخزون أو التقارير.
+        يمكنك اختيار عدة ملفات دفعة واحدة.
+    </p>
+
+    <form asp-action="Upload" method="post" enctype="multipart/form-data" style="max-width:560px; margin-top:16px;">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="form-group">
+            <label asp-for="Files"></label>
+            <input asp-for="Files" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" multiple required
+                   onchange="document.getElementById('filesCount').textContent = this.files.length + ' ملف تم اختياره'" />
+            <span asp-validation-for="Files" class="text-danger"></span>
+            <small class="muted" id="filesCount">الأنواع المسموحة: JPG, PNG, WEBP, PDF - الحجم الأقصى 15 ميجابايت لكل ملف</small>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="SupplierNameNote"></label>
+            <input asp-for="SupplierNameNote" placeholder="اختياري - يساعد بالبحث لاحقاً" />
+            <span asp-validation-for="SupplierNameNote" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="InvoiceDateNote"></label>
+            <input asp-for="InvoiceDateNote" type="date" />
+            <span asp-validation-for="InvoiceDateNote" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="Notes"></label>
+            <textarea asp-for="Notes" rows="3" placeholder="اختياري"></textarea>
+            <span asp-validation-for="Notes" class="text-danger"></span>
+        </div>
+
+        <small class="muted">ملاحظة: نفس هذه الحقول الاختيارية ستُنسب لكل الملفات المختارة بهذه الدفعة.</small>
+        <div style="margin-top:16px;">
+            <button type="submit" class="btn btn-Prim">⬆ أرشفة الملفات</button>
+            <a asp-action="Index" class="btn btn-secondary">إلغاء</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

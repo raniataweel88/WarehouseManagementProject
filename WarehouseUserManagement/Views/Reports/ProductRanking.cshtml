@@ -1,0 +1,115 @@
+@model ProductRankingViewModel
+@{
+    ViewData["Title"] = "ترتيب الأصناف (الأكثر شراءً / الأكثر صرفاً)";
+
+    string SortLink(string sortBy, string text)
+    {
+        var url = Url.Action("ProductRanking", new { Model.Filter.SearchTerm, Model.Filter.CategoryId, SortBy = sortBy });
+        var active = string.Equals(Model.Filter.SortBy ?? "purchased", sortBy, StringComparison.OrdinalIgnoreCase);
+        return $"<a href='{url}' class='btn btn-sm {(active ? "btn-Prim" : "btn-secondary")}'>{text}</a>";
+    }
+}
+
+<div class="page-title">
+    <h2>@ViewData["Title"]</h2>
+    <a asp-action="Index" class="btn btn-secondary">⟵ قائمة التقارير</a>
+</div>
+
+<div class="card">
+    <form method="get" class="toolbar">
+        <div class="form-group">
+            <label>بحث (اسم الصنف أو الباركود)</label>
+            <input type="search" name="SearchTerm" value="@Model.Filter.SearchTerm" placeholder="اكتب اسم الصنف أو الباركود..." />
+        </div>
+        <div class="form-group">
+            <label>التصنيف</label>
+            <select name="CategoryId">
+                <option value="">الكل</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <option value="@c.CategoryId" selected="@(Model.Filter.CategoryId == c.CategoryId)">@c.CategoryName</option>
+                }
+            </select>
+        </div>
+        <input type="hidden" name="SortBy" value="@Model.Filter.SortBy" />
+        <button type="submit" class="btn btn-Prim">بحث</button>
+        <a href="@Url.Action("ProductRanking")" class="btn btn-secondary">تفريغ</a>
+        <a href="@Url.Action("ProductRankingCsv", new { Model.Filter.SearchTerm, Model.Filter.CategoryId, Model.Filter.SortBy })" class="btn btn-secondary">⬇ تصدير Excel/CSV</a>
+    </form>
+</div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="page-title" style="margin-bottom:0;">
+        <span class="muted">ترتيب حسب:</span>
+        <div style="display:flex; gap:8px;">
+            @Html.Raw(SortLink("purchased", "🏆 الأكثر شراءً"))
+            @Html.Raw(SortLink("issued", "📤 الأكثر صرفاً"))
+            @Html.Raw(SortLink("name", "🔤 اسم الصنف"))
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid" style="margin-top:16px;">
+    <div class="stat-card">
+        <div class="num">@Model.Rows.Count</div>
+        <div class="label">عدد الأصناف</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">@Model.GrandTotalPurchased</div>
+        <div class="label">إجمالي الكمية المشتراة</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">@Model.GrandTotalIssued</div>
+        <div class="label">إجمالي كمية الصرف</div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>الصنف</th>
+                    <th>الباركود</th>
+                    <th>التصنيف</th>
+                    <th>الوحدة</th>
+                    <th>الكمية الحالية بالمخزون</th>
+                    <th>إجمالي الكمية المشتراة</th>
+                    <th>إجمالي كمية الصرف</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ var rank = 0; }
+                @foreach (var r in Model.Rows)
+                {
+                    rank++;
+                    <tr>
+                        <td>@rank</td>
+                        <td>@r.ProductName</td>
+                        <td class="muted">@r.Barcode</td>
+                        <td>@r.CategoryName</td>
+                        <td>@r.Unit</td>
+                        <td>@r.CurrentQuantity</td>
+                        <td>@r.TotalPurchasedQuantity</td>
+                        <td>@r.TotalIssuedQuantity</td>
+                    </tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="8" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                }
+            </tbody>
+            @if (Model.Rows.Any())
+            {
+                <tfoot>
+                    <tr>
+                        <th colspan="6">الإجمالي</th>
+                        <th>@Model.GrandTotalPurchased</th>
+                        <th>@Model.GrandTotalIssued</th>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>

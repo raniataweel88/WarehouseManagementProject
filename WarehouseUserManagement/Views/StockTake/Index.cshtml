@@ -46,8 +46,18 @@
 <div class="card">
     <form method="get" class="toolbar">
         <div class="form-group">
-            <label>بحث (ملاحظات)</label>
-            <input type="search" name="SearchTerm" value="@Model.SearchTerm" placeholder="اكتب للبحث..." />
+            <label>بحث (باركود)</label>
+            <input type="search" name="SearchTerm" value="@Model.SearchTerm" placeholder="امسح أو اكتب الباركود..." />
+        </div>
+        <div class="form-group">
+            <label>التصنيف</label>
+            <select name="CategoryFilter">
+                <option value="">الكل</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <option value="@c.CategoryId" selected="@(Model.CategoryFilter == c.CategoryId)">@c.CategoryName</option>
+                }
+            </select>
         </div>
         <div class="form-group">
             <label>الحالة</label>
@@ -68,7 +78,8 @@
             <thead>
                 <tr>
                     <th>تاريخ الجرد</th>
-                    <th>ملاحظات</th>
+                    <th>التصنيفات</th>
+                    <th>الباركود</th>
                     <th>عدد الأصناف</th>
                     <th>الحالة</th>
                     <th class="actions-col"></th>
@@ -79,7 +90,8 @@
                 {
                     <tr>
                         <td class="muted">@s.StockTakeDate.ToString("yyyy-MM-dd")</td>
-                        <td>@(s.Notes ?? "-")</td>
+                        <td>@(s.Categories.Any() ? string.Join(", ", s.Categories) : "-")</td>
+                        <td>@(s.Barcodes.Any() ? string.Join(", ", s.Barcodes) : "-")</td>
                         <td>@s.LinesCount</td>
                         <td><span class="status-pill @StatusClass(s.Status)">@StatusLabel(s.Status)</span></td>
                         <td class="actions-cell">
@@ -101,7 +113,7 @@
                 }
                 @if (!Model.StockTakes.Any())
                 {
-                    <tr><td colspan="5" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
+                    <tr><td colspan="6" class="muted" style="text-align:center; padding:24px;">لا يوجد نتائج</td></tr>
                 }
             </tbody>
         </table>
@@ -111,7 +123,7 @@
         @for (int p = 1; p <= Model.TotalPages; p++)
         {
             <a class="@(p == Model.PageNumber ? "active" : "")"
-               href="@Url.Action("Index", new { SearchTerm = Model.SearchTerm, StatusFilter = Model.StatusFilter, PageNumber = p, PageSize = Model.PageSize })">@p</a>
+               href="@Url.Action("Index", new { SearchTerm = Model.SearchTerm, StatusFilter = Model.StatusFilter, CategoryFilter = Model.CategoryFilter, PageNumber = p, PageSize = Model.PageSize })">@p</a>
         }
     </div>
     <p class="muted">إجمالي النتائج: @Model.TotalCount</p>
